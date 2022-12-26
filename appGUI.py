@@ -82,7 +82,7 @@ class AppGUI:
          if yPoints[x+1] > yPoints[x]:
             batteryChargedToday += 1
 
-      return batteryChargedToday
+      return batteryChargedToday 
 
    def createGraph(self, x, y):
       f = plt.Figure(figsize=(13, 6), dpi=70)
@@ -120,8 +120,8 @@ class AppGUI:
             batteryCharg = self.batteryCharged(Ypoints)
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)
 
-            timesChargedLabel.config(text=f"Battery Charged: {batteryCharg} time/s.") #Labels for how many times batt was charged and average life of the battery
-            avgBattLife.config(text=f"Average battery life: ≈{averBatt:.1f}h")
+            #Labels for how many times batt was charged and average life of the battery
+            batteryInfo.config(text=f"Battery Charged: {batteryCharg} time/s | Average battery life: ≈{averBatt:.1f}h") 
 
             errorLabel.config(text="")
 
@@ -156,7 +156,7 @@ class AppGUI:
 
 
    def main(self):
-      global errorLabel, bottomFrame, timesChargedLabel, avgBattLife, my_tree, dataFrame
+      global errorLabel, bottomFrame, batteryInfo, my_tree, dataFrame
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
       sideFrame.pack(side=LEFT)
@@ -201,21 +201,17 @@ class AppGUI:
       button.grid(row=3, column=1, pady=1, ipadx=30, ipady=5)
       button.configure(activebackground='#e9edc9')
 
-      timesChargedLabel = Label(topFrame, text=f"", bg='#81b29a', fg='#fefae0', font=('San Serif', 10))
-      timesChargedLabel.grid(row=2, column=2)
-
-      avgBattLife = Label(topFrame, text=f"", bg='#81b29a', fg='#fefae0', font=('San Serif', 10))
-      avgBattLife.grid(row=3, column=2)
+      
       #######################################################################################################################
       #records frame inputs and labels
       
-      searchMonth = Entry(searchFrame, highlightthickness=1, border=2, font=('San Serif', 9), justify=CENTER)
+      searchMonth = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
       searchMonth.grid(row=0, column=0, ipady=5, padx=10, pady=10)
 
-      searchYear = Entry(searchFrame, highlightthickness=1, border=2, font=('San Serif', 9), justify=CENTER)
+      searchYear = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
       searchYear.grid(row=0, column=1, ipady=5, padx=10, pady=10)
 
-      button = Button(searchFrame, border=2, text='Search', font=('San Serif', 11), relief='groove', bg='#fefae0', cursor="hand2", command=lambda: self.searchQuery(searchMonth.get(), searchYear.get()))
+      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', bg='#fefae0', cursor="hand2", command=lambda: self.searchQuery(searchMonth.get(), searchYear.get()))
       button.grid(row=1, column=0, pady=3, ipadx=15)
       button.configure(activebackground='#e9edc9')
 
@@ -228,7 +224,7 @@ class AppGUI:
       style.theme_use("clam")  
       style.configure("Treeview",
          background="white",
-         foreground="black",
+         foreground="#231942",
          rowheight=25,
          fieldbackground="white"
          )
@@ -252,10 +248,19 @@ class AppGUI:
 
       ####################################################################################################
       #bottom graph frame
-      bottomFrame = Frame(mainFrame, relief='sunken', border=3, height=600, bg='red', width=900)
+      bottomFrame = Frame(mainFrame, relief='sunken', border=3, height=500, bg='#ffffff', width=900)
       bottomFrame.grid(row=1, column=1)
+
+      bottomInfoFrame = Frame(bottomFrame, relief='groove', border=1, height=75, bg='#eaf4f4')
+      bottomInfoFrame.pack(side=BOTTOM, fill=X)
+
+      batteryInfo = Label(bottomInfoFrame, text=f"", bg='#eaf4f4', fg='#023047', font=('Arial', 10))
+      batteryInfo.pack(side="bottom", pady=15)
       
+
       my_tree.bind("<Double-1>", my_tree.focus())
+      bottomFrame.pack_propagate(False)
+      bottomInfoFrame.pack_propagate(False)
       searchFrame.grid_propagate(False)
       dataFrame.grid_propagate(False)
       topFrame.grid_propagate(False)
