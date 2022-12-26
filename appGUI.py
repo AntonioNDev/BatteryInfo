@@ -85,8 +85,9 @@ class AppGUI:
       return batteryChargedToday
 
    def createGraph(self, x, y):
-      f = plt.Figure(figsize=(10, 5), dpi=90)
+      f = plt.Figure(figsize=(13, 6), dpi=70)
       f.add_subplot().plot(x, y)
+      
       
       canvas = FigureCanvasTkAgg(f, bottomFrame)
       canvas.get_tk_widget().grid(row=0, column=0)
@@ -234,7 +235,7 @@ class AppGUI:
 
 
       my_tree = ttk.Treeview(dataFrame, yscrollcommand=tree_scroll.set)
-      my_tree.pack(ipadx=50, ipady=165, fill=BOTH)
+      my_tree.pack(ipadx=50, ipady=160, fill=BOTH)
 
       tree_scroll.config(command=my_tree.yview)
 
@@ -251,7 +252,7 @@ class AppGUI:
 
       ####################################################################################################
       #bottom graph frame
-      bottomFrame = Frame(mainFrame, relief='sunken', border=3, height=600, bg='#ffffff', width=900)
+      bottomFrame = Frame(mainFrame, relief='sunken', border=3, height=600, bg='red', width=900)
       bottomFrame.grid(row=1, column=1)
       
       my_tree.bind("<Double-1>", my_tree.focus())
