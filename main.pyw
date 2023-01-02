@@ -6,7 +6,7 @@ import psutil
 import logging
 
 path = "C:/Users/Antonio/Documents/MyProjects/BatteryInfo/logs"
-databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/test/test1.db'
+databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 
 logging.basicConfig(filename=f'{path}/errorLogs.log', level=logging.ERROR, format='%(levelname)s-%(message)s')
 
