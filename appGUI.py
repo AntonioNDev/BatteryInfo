@@ -42,7 +42,7 @@ class AppGUI:
                numz2 = yPointIndices[pairs[i+1]]
                calc.append(abs(time[numz1]-time[numz2]))
 
-      result = sum(calc) / len(calc) + 1
+      result = sum(calc) / len(calc) + 0.8
 
       return result
 

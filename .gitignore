@@ -1,3 +1,5 @@
 .info/
 .logs/
 .test/
+database.db
+TODO.todo
