@@ -86,7 +86,32 @@ class AppGUI:
 
    def createGraph(self, x, y):
       f = plt.Figure(figsize=(13, 6), dpi=70)
-      f.add_subplot().plot(x, y)
+      ax = f.add_subplot()
+      
+      # Set the initial color to None
+      color = None
+      
+      for i in range(1, len(y)):
+         # Calculate the difference between consecutive y-values
+         diff = y[i] - y[i-1]
+         if diff <= -5:
+              # If the difference is less than -4, set the color to red
+              color = 'red'
+         elif diff <= -4:
+            # If the difference is less than -6, set the color to orange
+            color = 'orange'
+         elif diff > -4:
+            # If the difference is less than -8, set the color to green
+            color = 'green'
+
+              
+         # Plot the line segment with the current color
+         ax.plot(x[i-1:i+1], y[i-1:i+1], c=color)
+         print(f"y:{y[i]} | yi-1:{y[i-1]} | diff: {diff} | color: {color}")
+      
+      ax.set_xticks(range(len(x)))
+      ax.set_xticklabels(x, rotation=45)
+
       
       
       canvas = FigureCanvasTkAgg(f, bottomFrame)
