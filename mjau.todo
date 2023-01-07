@@ -1,0 +1,8 @@
+1. Make update button so it fetches the latest github repo if it's available
+   -It checks for updates every time the app it's opened
+
+2. Try to find a better way to calculate the average time 
+3. Try to glanc the UI if it's possible
+4. Make a gui for instalation 
+5. Make website where the app can be dowloaded. 
+6. Make a new icon/logo

@@ -21,7 +21,7 @@ class App:
       with sqlite3.connect(databasePath) as conn:
          cur = conn.cursor()
          cur.execute(f"""CREATE TABLE IF NOT EXISTS {month} (
-               battery_perc INT NOT NULL,
+               batteryPerc INT NOT NULL,
                day TEXT NOT NULL,
                time INT NOT NULL,
                year TEXT NOT NULL

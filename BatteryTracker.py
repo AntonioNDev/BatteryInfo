@@ -7,13 +7,14 @@ import sqlite3 as sql
 
 window = Tk()
 window.title("Battery Tracker")
+window.iconbitmap("logo/logo.ico")
 
 databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 
 conn = sql.connect(databasePath)
 cur = conn.cursor()
 
-class AppGUI:
+class AppGUI: 
    def __init__(self):
       self.appWidth = 1250
       self.appHeight = 750
@@ -152,8 +153,7 @@ class AppGUI:
             errorLabel.config(text="")
 
          except Exception as e:
-            print(e)
-            errorLabel.config(text="No data for that month/day/year. Try again!.")
+            errorLabel.config(text=f"{e}")
 
       else:
          errorLabel.config(text="Empty inputs!.")
@@ -175,7 +175,7 @@ class AppGUI:
             dataFrame.configure(text=f'Data for: {month}')
 
          except Exception as e:
-            errorLabel.config(text="No data for that month/day/year. Try again!.")
+            errorLabel.config(text=f"{e}")
 
       else:
          errorLabel.config(text="Empty inputs!.")
