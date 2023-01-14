@@ -45,7 +45,7 @@ class AppGUI:
                calc.append(abs(time[numz1]-time[numz2]))
 
 
-      result = sum(calc) / len(calc) + 1
+      result = sum(calc) / len(calc) + 0.8
 
 
       return result
@@ -111,7 +111,7 @@ class AppGUI:
               
          # Plot the line segment with the current color
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color)
-         #print(f"y:{y[i]} | yi-1:{y[i-1]} | diff: {diff} | color: {color}")
+         #print(f"y[i]:{y[i]} | y[i-1]:{y[i-1]} | diff: {diff} | color: {color}")
       
       ax.set_xticks(range(len(x)))
       ax.set_xticklabels(x, rotation=35)
