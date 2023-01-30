@@ -44,9 +44,7 @@ class AppGUI:
 
                calc.append(abs(time[numz1]-time[numz2]))
 
-
       result = sum(calc) / len(calc) + 0.8
-
 
       return result
 
@@ -67,7 +65,6 @@ class AppGUI:
                                           
             startIndex = i+1
                
-
       restOfTheNums = yPoints[startIndex:len(yPoints)]
       min_num = min(restOfTheNums) 
       max_num = max(restOfTheNums)
@@ -108,7 +105,6 @@ class AppGUI:
             # If the difference is > -5, set the color to green
             color = 'green'
 
-              
          # Plot the line segment with the current color
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color)
          #print(f"y[i]:{y[i]} | y[i-1]:{y[i-1]} | diff: {diff} | color: {color}")
@@ -128,7 +124,7 @@ class AppGUI:
 
       if month and day and year:
          try:
-            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=?;", (day, year)).fetchall()
+            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=? AND time > 400;", (day, year)).fetchall()
             
             for i, x in enumerate(data):
                Ypoints = np.append(Ypoints, [x[0]])

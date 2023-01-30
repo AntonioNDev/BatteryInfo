@@ -1,5 +1,3 @@
-.info/
-.logs/
-.test/
+tod.todo
 database.db
-TODO.todo
+logs/
