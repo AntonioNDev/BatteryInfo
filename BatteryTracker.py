@@ -4,6 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sqlite3 as sql
+import datetime
+
+now = datetime.datetime.now()
+
+day = now.strftime("%a %d")
+month = now.strftime("%b")
+year = now.strftime("%Y")
 
 window = Tk()
 window.title("Battery Tracker")
@@ -43,8 +50,9 @@ class AppGUI:
                numz2 = yPointIndices[pairs[i+1]]
 
                calc.append(abs(time[numz1]-time[numz2]))
+               
+      result = sum(calc) / len(calc) + 1.3
 
-      result = sum(calc) / len(calc) + 0.8
 
       return result
 
@@ -65,6 +73,7 @@ class AppGUI:
                                           
             startIndex = i+1
                
+
       restOfTheNums = yPoints[startIndex:len(yPoints)]
       min_num = min(restOfTheNums) 
       max_num = max(restOfTheNums)
@@ -86,7 +95,7 @@ class AppGUI:
       return batteryChargedToday 
 
    def createGraph(self, x, y):
-      f = plt.Figure(figsize=(11.5, 5), dpi=80)
+      f = plt.Figure(figsize=(12, 6), dpi=75)
       ax = f.add_subplot()
       
       # Set the initial color to None
@@ -105,6 +114,7 @@ class AppGUI:
             # If the difference is > -5, set the color to green
             color = 'green'
 
+              
          # Plot the line segment with the current color
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color)
          #print(f"y[i]:{y[i]} | y[i-1]:{y[i-1]} | diff: {diff} | color: {color}")
@@ -112,7 +122,7 @@ class AppGUI:
       ax.set_xticks(range(len(x)))
       ax.set_xticklabels(x, rotation=35)
 
-      canvas = FigureCanvasTkAgg(f, bottomFrame)
+      canvas = FigureCanvasTkAgg(f, graphFrame)
       canvas.get_tk_widget().grid(row=0, column=0)
 
    def getData(self, month, day, year):
@@ -124,7 +134,7 @@ class AppGUI:
 
       if month and day and year:
          try:
-            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=? AND time > 400;", (day, year)).fetchall()
+            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=? AND time > 600;", (day, year)).fetchall()
             
             for i, x in enumerate(data):
                Ypoints = np.append(Ypoints, [x[0]])
@@ -149,8 +159,9 @@ class AppGUI:
             errorLabel.config(text="")
 
          except Exception as e:
-            errorLabel.config(text=f"{e}")
-
+            #errorLabel.config(text=f"{e}")
+            pass
+         
       else:
          errorLabel.config(text="Empty inputs!.")
 
@@ -171,10 +182,11 @@ class AppGUI:
             dataFrame.configure(text=f'Data for: {month}')
 
          except Exception as e:
-            errorLabel.config(text=f"{e}")
-
+            #errorLabel.config(text=f"{e}")
+            pass
       else:
-         errorLabel.config(text="Empty inputs!.")
+         #errorLabel.config(text="Empty inputs!.")
+         pass
 
    def helperFunc(self, month):
       try:
@@ -188,7 +200,7 @@ class AppGUI:
          pass
 
    def main(self):
-      global errorLabel, bottomFrame, batteryInfo, my_tree, dataFrame
+      global errorLabel, graphFrame, batteryInfo, my_tree, dataFrame
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
       sideFrame.pack(side=LEFT)
@@ -202,38 +214,6 @@ class AppGUI:
       mainFrame = Frame(window, relief='sunken', height=500, width=1000)
       mainFrame.pack(side=RIGHT)
 
-      topFrame = Frame(mainFrame, relief='sunken', border=3, height=250, bg='#81b29a', width=900)
-      topFrame.grid(row=0, column=1)
-
-      ########## top frame inputs and labels ###########
-      monthLabel = Label(topFrame, text='Month', font=('Lucida Bright', 17), bg='#81b29a')
-      monthLabel.grid(row=0, column=0, padx=115)
-
-      monthEntry = Entry(topFrame, highlightthickness=1, border=2, font=('Lucida Bright', 14), justify=CENTER)
-      monthEntry.grid(row=1, column=0)
-
-      ####
-      dayLabel = Label(topFrame, text='Day/Date', font=('Lucida Bright', 17), bg='#81b29a')
-      dayLabel.grid(row=0, column=1, padx=30, pady=30)
-
-      dayEntry = Entry(topFrame, highlightthickness=1, border=2, font=('Lucida Bright', 14), justify=CENTER)
-      dayEntry.grid(row=1, column=1)
-
-      ####
-      yearLabel = Label(topFrame, text='Year', font=('Lucida Bright', 17), bg='#81b29a')
-      yearLabel.grid(row=0, column=2, padx=130, pady=30)
-
-      yearEntry = Entry(topFrame, highlightthickness=1, border=2, font=('Lucida Bright', 14), justify=CENTER)
-      yearEntry.grid(row=1, column=2)
-
-      errorLabel = Label(topFrame, text=f'', font=('Lucida Bright', 10), bg='#81b29a', fg='red')
-      errorLabel.grid(row=2, column=1, pady=15)
-
-      button = Button(topFrame, border=2, text='Show graph', font=('Lucida Bright', 12), relief='groove', bg='#fefae0', cursor="hand2", command=lambda: self.getData(monthEntry.get(), dayEntry.get(), yearEntry.get()))
-      button.grid(row=3, column=1, pady=1, ipadx=30, ipady=5)
-      button.configure(activebackground='#e9edc9')
-
-      
       #######################################################################################################################
       #records frame inputs and labels
       
@@ -259,7 +239,7 @@ class AppGUI:
          foreground="#231942",
          rowheight=25,
          fieldbackground="white"
-         )
+      )
 
 
       my_tree = ttk.Treeview(dataFrame, yscrollcommand=tree_scroll.set)
@@ -273,17 +253,16 @@ class AppGUI:
       my_tree.column("Day", anchor=CENTER, width=100)
       my_tree.column("Year", anchor=CENTER, width=120)
       
-
       my_tree.heading("#0", text='', anchor=W)
       my_tree.heading("Day", text="Day", anchor=CENTER)
       my_tree.heading("Year", text="Year", anchor=CENTER)
 
       ####################################################################################################
       #bottom graph frame
-      bottomFrame = Frame(mainFrame, relief='sunken', border=3, height=500, bg='#ffffff', width=900)
-      bottomFrame.grid(row=1, column=1)
+      graphFrame = Frame(mainFrame, relief='sunken', border=3, height=self.appHeight, bg='#ffffff', width=900)
+      graphFrame.grid(row=1, column=1)
 
-      bottomInfoFrame = Frame(bottomFrame, relief='groove', border=1, height=75, bg='#eaf4f4')
+      bottomInfoFrame = Frame(graphFrame, relief='groove', border=1, height=100, bg='#eaf4f4')
       bottomInfoFrame.pack(side=BOTTOM, fill=X)
 
       batteryInfo = Label(bottomInfoFrame, text=f"", bg='#eaf4f4', fg='#023047', font=('Arial', 10))
@@ -292,13 +271,15 @@ class AppGUI:
 
       my_tree.bind("<Double-1>", lambda e: self.helperFunc(searchMonth.get()))
 
-      bottomFrame.pack_propagate(False)
+      graphFrame.pack_propagate(False)
       bottomInfoFrame.pack_propagate(False)
       searchFrame.grid_propagate(False)
       dataFrame.grid_propagate(False)
-      topFrame.grid_propagate(False)
-      bottomFrame.grid_propagate(False)
+      graphFrame.grid_propagate(False)
 
+
+      #Create graph when the app is started
+      self.getData(month, day, year)
 
 AppGUI()
 
