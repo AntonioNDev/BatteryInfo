@@ -95,7 +95,7 @@ class AppGUI:
       return batteryChargedToday 
 
    def createGraph(self, x, y):
-      f = plt.Figure(figsize=(12, 6), dpi=75)
+      f = plt.Figure(figsize=(12, 5.5), dpi=75)
       ax = f.add_subplot()
       
       # Set the initial color to None
