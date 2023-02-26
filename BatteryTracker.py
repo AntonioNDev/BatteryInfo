@@ -14,50 +14,18 @@ year = now.strftime("%Y")
 
 window = Tk()
 window.title("Battery Tracker")
-window.iconbitmap("logo/logo.ico")
+window.iconbitmap("logo/logoNBW.ico")
 
 databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 
 conn = sql.connect(databasePath)
 cur = conn.cursor()
 
-class AppGUI: 
-   def __init__(self):
-      self.appWidth = 1250
-      self.appHeight = 750
-      self.screen_w = window.winfo_screenwidth()
-      self.screen_h = window.winfo_screenheight()
-
-      x = (self.screen_w / 2) - (self.appWidth) + 600
-      y = (self.screen_h / 2) - (self.appHeight) + 350
-      window.geometry(f'{self.appWidth}x{self.appHeight}+{int(x)}+{int(y)}')
-
-      self.main()
-
-   def getIndexAndCalc(self, time, pairs, yPoints):
+class AppFunctions:
+   def avgBattLife(self, xPoints, yPoints) -> int:
+      pairs = []
       calc = []
       yPointIndices = {}
-
-      # Build a dictionary of indices for the elements in yPoints
-      for i, y in enumerate(yPoints):
-         yPointIndices[y] = i
-         
-      # Iterate over the pairs of elements in pairs
-      for i in range(0, len(pairs)-1, 2):
-         if pairs[i] in yPoints:
-               # Look up the indices of the elements in yPoints using the dictionary
-               numz1 = yPointIndices[pairs[i]]
-               numz2 = yPointIndices[pairs[i+1]]
-
-               calc.append(abs(time[numz1]-time[numz2]))
-               
-      result = sum(calc) / len(calc) + 1.3
-
-
-      return result
-
-   def avgBattLife(self, xPoints, yPoints):
-      pairs = []
 
       startIndex = 0
       sublist = yPoints[:]
@@ -73,57 +41,45 @@ class AppGUI:
                                           
             startIndex = i+1
                
-
       restOfTheNums = yPoints[startIndex:len(yPoints)]
       min_num = min(restOfTheNums) 
       max_num = max(restOfTheNums)
 
-
       pairs.append(max_num)
       pairs.append(min_num)
 
-      result = self.getIndexAndCalc(xPoints, pairs, yPoints)
-      return result
+      # Build a dictionary of indices for the elements in yPoints
+      for i, y in enumerate(yPoints):
+         yPointIndices[y] = i
+         
+      # Iterate over the pairs of elements in pairs
+      for i in range(0, len(pairs)-1, 2):
+         if pairs[i] in yPoints:
+               # Look up the indices of the elements in yPoints using the dictionary
+               numz1 = yPointIndices[pairs[i]]
+               numz2 = yPointIndices[pairs[i+1]]
+
+               calc.append(abs(xPoints[numz1]-xPoints[numz2]))
+      
+      resultInMinutes = sum(calc) / len(calc)
+      hours, minutes = self.minutesToHours(resultInMinutes)
+
+      return hours
 
    def batteryCharged(self, yPoints):
       batteryChargedToday = 0
 
       for x in range(0, len(yPoints) - 1):
-         if yPoints[x+1] > yPoints[x]:
+         if yPoints[x+1] < yPoints[x]:
             batteryChargedToday += 1
 
       return batteryChargedToday 
+   
+   def minutesToHours(self, total):
+      hours = int(total) // 60 #Convert minutes in hours and minutes... 
+      minutes = total % 60
 
-   def createGraph(self, x, y):
-      f = plt.Figure(figsize=(12, 5.5), dpi=75)
-      ax = f.add_subplot()
-      
-      # Set the initial color to None
-      color = 'blue'
-      
-      for i in range(1, len(y)):
-         # Calculate the difference between consecutive y-values
-         diff = y[i] - y[i-1]
-         if diff <= -6:
-              # If the difference is <= -6, set the color to red
-              color = 'red'
-         elif diff <= -5:
-            # If the difference is <= -5, set the color to orange
-            color = 'orange'
-         elif diff > -5:
-            # If the difference is > -5, set the color to green
-            color = 'green'
-
-              
-         # Plot the line segment with the current color
-         ax.plot(x[i-1:i+1], y[i-1:i+1], c=color)
-         #print(f"y[i]:{y[i]} | y[i-1]:{y[i-1]} | diff: {diff} | color: {color}")
-      
-      ax.set_xticks(range(len(x)))
-      ax.set_xticklabels(x, rotation=35)
-
-      canvas = FigureCanvasTkAgg(f, graphFrame)
-      canvas.get_tk_widget().grid(row=0, column=0)
+      return hours, minutes
 
    def getData(self, month, day, year):
       Ypoints = np.array([])
@@ -140,15 +96,14 @@ class AppGUI:
                Ypoints = np.append(Ypoints, [x[0]])
 
                total_min = x[2]
-               hours = int(total_min) // 60 #Convert minutes in hours, minutes... 
-               minutes = total_min % 60
+               hours, minutes = self.minutesToHours(total_min)
 
                Xpoints = np.append(Xpoints, [f'{hours:02d}:{minutes:02d}']) 
 
                yDataFAvg.append(x[0])
-               xDataFAvg.append(hours)
+               xDataFAvg.append(total_min)
 
-            self.createGraph(Xpoints, Ypoints)
+            self.createGraph(Xpoints, Ypoints) #calls the function to create the graph
 
             batteryCharg = self.batteryCharged(Ypoints)
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)
@@ -159,11 +114,21 @@ class AppGUI:
             errorLabel.config(text="")
 
          except Exception as e:
-            #errorLabel.config(text=f"{e}")
-            pass
-         
+            errorLabel.config(text=f"{e}")
+            
       else:
          errorLabel.config(text="Empty inputs!.")
+
+   def helperFunc(self, month):
+      try:
+         selected = my_tree.focus()
+         values = my_tree.item(selected, 'values')
+         day = values[0]
+         year = values[1]
+
+         self.getData(month, day, year)
+      except Exception as e:
+         errorLabel.config(text=f"{e}")
 
    def searchQuery(self, month, year):
       my_tree.delete(*my_tree.get_children())
@@ -182,22 +147,57 @@ class AppGUI:
             dataFrame.configure(text=f'Data for: {month}')
 
          except Exception as e:
-            #errorLabel.config(text=f"{e}")
-            pass
+            errorLabel.config(text=f"{e}")
+            
       else:
-         #errorLabel.config(text="Empty inputs!.")
-         pass
+         errorLabel.config(text="Empty inputs!.")
 
-   def helperFunc(self, month):
-      try:
-         selected = my_tree.focus()
-         values = my_tree.item(selected, 'values')
-         day = values[0]
-         year = values[1]
+   def createGraph(self, x, y):
+      f = plt.Figure(figsize=(12, 5.5), dpi=75)
+      ax = f.add_subplot()
 
-         self.getData(month, day, year)
-      except Exception as e:
-         pass
+      for i in range(1, len(y)):
+         # Calculate the difference between consecutive y-values
+         diff = y[i] - y[i-1]
+         if diff <= -6:
+            # If the difference is <= -6, use the line style and color for "High"
+            lineStyle = "solid"
+            color = 'red'
+         elif diff <= -4:
+            # If the difference is <= -4, use the line style and color for "Normal"
+            lineStyle = "dashed"
+            color = 'orange'
+         else:
+            # If the difference is > -4, use the line style and color for "Low"
+            lineStyle = "dotted"
+            color = 'green'
+
+         # Plot the line segment with the appropriate line style and color
+         ax.plot(x[i-1:i+1], y[i-1:i+1], c=color, linestyle=lineStyle)
+      
+      ax.set_xticks(range(len(x)))
+      ax.set_xticklabels(x, rotation=35)
+
+      ax.set_ylabel("Battery Percentage")
+      ax.set_xlabel("Time")
+      
+      canvas = FigureCanvasTkAgg(f, graphFrame)
+      canvas.get_tk_widget().grid(row=0, column=0)
+
+class AppGUI: 
+   def __init__(self):
+      self.appWidth = 1250
+      self.appHeight = 750
+      self.screen_w = window.winfo_screenwidth()
+      self.screen_h = window.winfo_screenheight()
+
+      x = (self.screen_w / 2) - (self.appWidth) + 600
+      y = (self.screen_h / 2) - (self.appHeight) + 350
+      window.geometry(f'{self.appWidth}x{self.appHeight}+{int(x)}+{int(y)}')
+
+      self.func = AppFunctions()
+
+      self.main()
 
    def main(self):
       global errorLabel, graphFrame, batteryInfo, my_tree, dataFrame
@@ -223,7 +223,7 @@ class AppGUI:
       searchYear = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
       searchYear.grid(row=0, column=1, ipady=5, padx=10, pady=10)
 
-      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', bg='#fefae0', cursor="hand2", command=lambda: self.searchQuery(searchMonth.get(), searchYear.get()))
+      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', bg='#fefae0', cursor="hand2", command=lambda: self.func.searchQuery(searchMonth.get(), searchYear.get()))
       button.grid(row=1, column=0, pady=3, ipadx=15)
       button.configure(activebackground='#e9edc9')
 
@@ -267,9 +267,12 @@ class AppGUI:
 
       batteryInfo = Label(bottomInfoFrame, text=f"", bg='#eaf4f4', fg='#023047', font=('Arial', 10))
       batteryInfo.pack(side="bottom", pady=15)
+
+      errorLabel = Label(bottomInfoFrame, text=f'', fg='#e63946')
+      errorLabel.pack(side="bottom", pady=10)
       
 
-      my_tree.bind("<Double-1>", lambda e: self.helperFunc(searchMonth.get()))
+      my_tree.bind("<Double-1>", lambda e: self.func.helperFunc(searchMonth.get()))
 
       graphFrame.pack_propagate(False)
       bottomInfoFrame.pack_propagate(False)
@@ -279,7 +282,7 @@ class AppGUI:
 
 
       #Create graph when the app is started
-      self.getData(month, day, year)
+      self.func.getData(month, day, year)
 
 AppGUI()
 
