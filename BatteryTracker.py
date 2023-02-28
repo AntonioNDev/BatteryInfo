@@ -70,7 +70,7 @@ class AppFunctions:
       batteryChargedToday = 0
 
       for x in range(0, len(yPoints) - 1):
-         if yPoints[x+1] < yPoints[x]:
+         if yPoints[x+1] > yPoints[x]:
             batteryChargedToday += 1
 
       return batteryChargedToday 
