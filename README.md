@@ -12,4 +12,4 @@
 
 
 
-<img src="images/appImage.png" alt="App Image" align="center">
+<img src="appImg/appImage.png" alt="App Image" align="center">
