@@ -21,6 +21,12 @@ databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 conn = sql.connect(databasePath)
 cur = conn.cursor()
 
+class colorPalette:
+   def __init__(self) -> None:
+      self.primaryC = '#b5bab7'
+      self.secondaryC = '#D0CDCF'
+      self.accentC = '#656C67'
+
 class AppFunctions:
    def avgBattLife(self, xPoints, yPoints) -> int:
       pairs = []
@@ -90,7 +96,7 @@ class AppFunctions:
 
       if month and day and year:
          try:
-            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=? AND time > 600;", (day, year)).fetchall()
+            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
             
             for i, x in enumerate(data):
                Ypoints = np.append(Ypoints, [x[0]])
@@ -205,7 +211,7 @@ class AppGUI:
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
       sideFrame.pack(side=LEFT)
 
-      searchFrame = LabelFrame(sideFrame, height=130, width=350, bg='#ccd5ae', text='Month & Year')
+      searchFrame = LabelFrame(sideFrame, height=130, width=350, bg=colorPalette().secondaryC, text='Month & Year')
       searchFrame.grid(row=0, column=0, sticky='n')
 
       dataFrame = LabelFrame(sideFrame, height=600, width=350, bg='#e5e5e5', relief='sunken', border=2, text=f'')

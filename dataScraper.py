@@ -10,13 +10,17 @@ months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 
 
 
 def batteryCharged(yPoints):
-   batteryChargedCount = 0
+    if len(yPoints) < 2:
+        return 0
 
-   for x in range(len(yPoints) - 1):
-      if yPoints[x + 1] > yPoints[x]:
-         batteryChargedCount += 1
+    batteryChargedCount = 0
 
-   return batteryChargedCount
+    for current, next_ in zip(yPoints, yPoints[1:]):
+        if next_ > current:
+            batteryChargedCount += 1
+
+    return batteryChargedCount
+
 
 
 def yearly():
