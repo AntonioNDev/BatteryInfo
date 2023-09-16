@@ -21,6 +21,10 @@ databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 conn = sql.connect(databasePath)
 cur = conn.cursor()
 
+class animations:
+   def __init__(self) -> None:
+      pass
+
 class colorPalette:
    def __init__(self) -> None:
       self.primaryC = '#b5bab7'
@@ -66,7 +70,8 @@ class AppFunctions:
                numz2 = yPointIndices[pairs[i+1]]
 
                calc.append(abs(xPoints[numz1]-xPoints[numz2]))
-      
+
+      print(calc)
       resultInMinutes = sum(calc) / len(calc)
       hours, minutes = self.minutesToHours(resultInMinutes)
 
@@ -96,7 +101,7 @@ class AppFunctions:
 
       if month and day and year:
          try:
-            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
+            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=? AND time > 600", (day, year)).fetchall()
             
             for i, x in enumerate(data):
                Ypoints = np.append(Ypoints, [x[0]])
@@ -289,6 +294,7 @@ class AppGUI:
 
       #Create graph when the app is started
       self.func.getData(month, day, year)
+
 
 AppGUI()
 
