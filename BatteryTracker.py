@@ -48,7 +48,7 @@ class AppFunctions:
                                           #Iterates over the list and it separates the numbers by slicing
             pairs.append(max_num)         #Then it sends to the function where it finds the index of the numbers
             pairs.append(min_num)         #And it calculates how many hours the battery lasted (approximately).
-                                          
+
             startIndex = i+1
                
       restOfTheNums = yPoints[startIndex:len(yPoints)]
@@ -57,25 +57,24 @@ class AppFunctions:
 
       pairs.append(max_num)
       pairs.append(min_num)
-
+      
       # Build a dictionary of indices for the elements in yPoints
       for i, y in enumerate(yPoints):
          yPointIndices[y] = i
          
       # Iterate over the pairs of elements in pairs
-      for i in range(0, len(pairs)-1, 2):
+      for i in range(0, len(pairs) - 1, 2):
          if pairs[i] in yPoints:
                # Look up the indices of the elements in yPoints using the dictionary
                numz1 = yPointIndices[pairs[i]]
                numz2 = yPointIndices[pairs[i+1]]
 
-               calc.append(abs(xPoints[numz1]-xPoints[numz2]))
+               calc.append(abs(xPoints[numz1]-xPoints[numz2])) # xPoints[numz1] and xPoints[numz2] will subtract the minutes between the pairs
 
-      print(calc)
       resultInMinutes = sum(calc) / len(calc)
       hours, minutes = self.minutesToHours(resultInMinutes)
 
-      return hours
+      return [hours, minutes]
 
    def batteryCharged(self, yPoints):
       batteryChargedToday = 0
@@ -101,7 +100,7 @@ class AppFunctions:
 
       if month and day and year:
          try:
-            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=? AND time > 600", (day, year)).fetchall()
+            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
             
             for i, x in enumerate(data):
                Ypoints = np.append(Ypoints, [x[0]])
@@ -120,7 +119,7 @@ class AppFunctions:
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)
 
             #Labels for how many times batt was charged and average life of the battery
-            batteryInfo.config(text=f"Battery Charged: {batteryCharg} time/s | Average battery life: ≈{averBatt:.1f}h") 
+            batteryInfo.config(text=f"Battery Charged: {batteryCharg} time/s | Avg battery life while the device is used: ≈{averBatt[0]} hours and {averBatt[1]:.0f} minutes") 
 
             errorLabel.config(text="")
 
