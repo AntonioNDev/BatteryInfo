@@ -32,7 +32,7 @@ class colorPalette:
       self.accentC = '#656C67'
 
 class AppFunctions:
-   def avgBattLife(self, xPoints, yPoints) -> int:
+   def avgBattLife(self, xPoints, yPoints):
       pairs = []
       calc = []
       yPointIndices = {}
@@ -113,7 +113,7 @@ class AppFunctions:
                yDataFAvg.append(x[0])
                xDataFAvg.append(total_min)
 
-            self.createGraph(Xpoints, Ypoints) #calls the function to create the graph
+            self.createGraph(Xpoints, Ypoints, day) #calls the function to create the graph
 
             batteryCharg = self.batteryCharged(Ypoints)
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)
@@ -162,8 +162,8 @@ class AppFunctions:
       else:
          errorLabel.config(text="Empty inputs!.")
 
-   def createGraph(self, x, y):
-      f = plt.Figure(figsize=(12, 5.5), dpi=75)
+   def createGraph(self, x, y, day):
+      f = plt.Figure(figsize=(15, 6), dpi=80)
       ax = f.add_subplot()
 
       for i in range(1, len(y)):
@@ -177,6 +177,7 @@ class AppFunctions:
             # If the difference is <= -4, use the line style and color for "Normal"
             lineStyle = "dashed"
             color = 'orange'
+
          else:
             # If the difference is > -4, use the line style and color for "Low"
             lineStyle = "dotted"
@@ -184,15 +185,41 @@ class AppFunctions:
 
          # Plot the line segment with the appropriate line style and color
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color, linestyle=lineStyle)
-      
+
+      minimum = min(y)  # Find the minimum y value
+
+      for i in range(1, len(y)):
+         if y[i] > y[i - 1]:
+            ax.scatter([x[i]], [y[i]], color='black', s=30, marker='o', linewidth=2, zorder=5)
+            ax.annotate('Charged', (x[i], y[i]), textcoords='offset points', xytext=(-30, 0), ha='center', fontsize=11, color='black')
+
+         if y[i] == minimum:
+            ax.scatter([x[i]], [y[i]], color='black', s=30, marker='o', linewidth=2, zorder=5)
+            ax.annotate(f'Lowest {minimum:.0f}%', (x[i], y[i]), textcoords='offset points', xytext=(-40, 0), ha='center', fontsize=11, color='black')
+
+
+
       ax.set_xticks(range(len(x)))
       ax.set_xticklabels(x, rotation=35)
 
       ax.set_ylabel("Battery Percentage")
       ax.set_xlabel("Time")
-      
+      ax.set_title(f'Battery data for {day}')
+
+      # Manually specify the legend entries for red, orange, and green lines
+      ax.plot([], [], color='red', linestyle='solid', label='Battery Used >= 6')
+      ax.plot([], [], color='orange', linestyle='dashed', label='Battery Used >= 4')
+      ax.plot([], [], color='green', linestyle='dotted', label='Battery Used <= 3')
+      ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
+
+
+      ax.legend(loc='upper right')  # Display the legend in the top-right corner
+
+
       canvas = FigureCanvasTkAgg(f, graphFrame)
-      canvas.get_tk_widget().grid(row=0, column=0)
+      canvas_widget = canvas.get_tk_widget()
+      canvas_widget.grid(row=0, column=0, sticky="n")
+      
 
 class AppGUI: 
    def __init__(self):
@@ -213,7 +240,7 @@ class AppGUI:
       global errorLabel, graphFrame, batteryInfo, my_tree, dataFrame
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
-      sideFrame.pack(side=LEFT)
+      sideFrame.pack(side=LEFT, fill='y')
 
       searchFrame = LabelFrame(sideFrame, height=130, width=350, bg=colorPalette().secondaryC, text='Month & Year')
       searchFrame.grid(row=0, column=0, sticky='n')
@@ -221,8 +248,8 @@ class AppGUI:
       dataFrame = LabelFrame(sideFrame, height=600, width=350, bg='#e5e5e5', relief='sunken', border=2, text=f'')
       dataFrame.grid(row=1, column=0)
       
-      mainFrame = Frame(window, relief='sunken', height=500, width=1000)
-      mainFrame.pack(side=RIGHT)
+      mainFrame = Frame(window, relief='sunken')
+      mainFrame.pack(side=RIGHT, fill='both', expand=True)  # Use grid for mainFrame
 
       #######################################################################################################################
       #records frame inputs and labels
@@ -247,13 +274,13 @@ class AppGUI:
       style.configure("Treeview",
          background="white",
          foreground="#231942",
-         rowheight=25,
+         rowheight=30,
          fieldbackground="white"
       )
 
 
       my_tree = ttk.Treeview(dataFrame, yscrollcommand=tree_scroll.set)
-      my_tree.pack(ipadx=50, ipady=160, fill=BOTH)
+      my_tree.pack(ipadx=50, ipady=180, fill=BOTH, expand=True)
 
       tree_scroll.config(command=my_tree.yview)
 
@@ -270,7 +297,7 @@ class AppGUI:
       ####################################################################################################
       #bottom graph frame
       graphFrame = Frame(mainFrame, relief='sunken', border=3, height=self.appHeight, bg='#ffffff', width=900)
-      graphFrame.grid(row=1, column=1)
+      graphFrame.pack(fill='both', expand=True)
 
       bottomInfoFrame = Frame(graphFrame, relief='groove', border=1, height=100, bg='#eaf4f4')
       bottomInfoFrame.pack(side=BOTTOM, fill=X)
@@ -280,17 +307,26 @@ class AppGUI:
 
       errorLabel = Label(bottomInfoFrame, text=f'', fg='#e63946')
       errorLabel.pack(side="bottom", pady=10)
-      
 
       my_tree.bind("<Double-1>", lambda e: self.func.helperFunc(searchMonth.get()))
+
+      # Configure grid rows and columns to expand
+      sideFrame.grid_rowconfigure(1, weight=1)  # Make the second row of sideFrame expand
+      sideFrame.grid_columnconfigure(0, weight=1)  # Make the first column of sideFrame expand
+      dataFrame.grid_rowconfigure(1, weight=1)  # Make dataFrame expand
+      
+      mainFrame.grid_rowconfigure(0, weight=1)  # Make mainFrame expand vertically
+      mainFrame.grid_columnconfigure(0, weight=1)  # Make mainFrame expand horizontally
+      graphFrame.grid_rowconfigure(0, weight=1)
+      graphFrame.grid_columnconfigure(0, weight=1)
+
 
       graphFrame.pack_propagate(False)
       bottomInfoFrame.pack_propagate(False)
       searchFrame.grid_propagate(False)
       dataFrame.grid_propagate(False)
       graphFrame.grid_propagate(False)
-
-
+   
       #Create graph when the app is started
       self.func.getData(month, day, year)
 
@@ -298,5 +334,5 @@ class AppGUI:
 AppGUI()
 
 window.bind('<Button>', lambda event: event.widget.focus_set())
-window.resizable(False, False) 
+#window.resizable(False, False) 
 window.mainloop()
