@@ -1,11 +1,12 @@
 from tkinter import *
 from tkinter import ttk
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import sqlite3 as sql
 import datetime
+import matplotlib.pyplot as plt
+import matplotlib
 
+matplotlib.use('TkAgg')
 now = datetime.datetime.now()
 
 day = now.strftime("%a %d")
@@ -92,6 +93,8 @@ class AppFunctions:
       return hours, minutes
 
    def getData(self, month, day, year):
+      import numpy as np
+
       Ypoints = np.array([])
       Xpoints = np.array([])
 
@@ -163,7 +166,9 @@ class AppFunctions:
          errorLabel.config(text="Empty inputs!.")
 
    def createGraph(self, x, y, day):
-      f = plt.Figure(figsize=(15, 6), dpi=80)
+      global f, ax
+
+      f = plt.Figure(figsize=(15, 6), dpi=80) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
       ax = f.add_subplot()
 
       for i in range(1, len(y)):
@@ -187,7 +192,6 @@ class AppFunctions:
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color, linestyle=lineStyle)
 
       minimum = min(y)  # Find the minimum y value
-
       for i in range(1, len(y)):
          if y[i] > y[i - 1]:
             ax.scatter([x[i]], [y[i]], color='black', s=30, marker='o', linewidth=2, zorder=5)
@@ -196,8 +200,6 @@ class AppFunctions:
          if y[i] == minimum:
             ax.scatter([x[i]], [y[i]], color='black', s=30, marker='o', linewidth=2, zorder=5)
             ax.annotate(f'Lowest {minimum:.0f}%', (x[i], y[i]), textcoords='offset points', xytext=(-40, 0), ha='center', fontsize=11, color='black')
-
-
 
       ax.set_xticks(range(len(x)))
       ax.set_xticklabels(x, rotation=35)
@@ -211,15 +213,66 @@ class AppFunctions:
       ax.plot([], [], color='orange', linestyle='dashed', label='Battery Used >= 4')
       ax.plot([], [], color='green', linestyle='dotted', label='Battery Used <= 3')
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
-
-
       ax.legend(loc='upper right')  # Display the legend in the top-right corner
-
-
+      
       canvas = FigureCanvasTkAgg(f, graphFrame)
       canvas_widget = canvas.get_tk_widget()
       canvas_widget.grid(row=0, column=0, sticky="n")
-      
+
+      #Destroy the existing toolbar if it exists
+      if 'toolbar' in locals():
+         toolbar.grid_forget()
+
+      # Create a new navigation toolbar for zooming and panning
+      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+      toolbar.update()
+      toolbar.grid(row=1, column=0, sticky="ew")
+
+   def chargedCountsGraph(self, type):
+      chargedCounts = []
+
+      if type == 'yearly': #NOTE: fix this
+         cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+         #Fetch all the table names as a list of tuples
+         table_names = cur.fetchall()
+         #Extract table names from the tuples and save them in a list
+         table_list = [table[0] for table in table_names]
+
+         for month in table_list:
+            data = conn.execute(f"SELECT * FROM {month};").fetchall()
+            points = [row[0] for row in data]
+            chargedCounts.append(self.batteryCharged(points))
+
+         # Create a line plot
+         ax.plot(table_list, chargedCounts, marker='o', linestyle='-', color='b')
+         ax.set_xlabel('Month')
+         ax.set_ylabel('Charging Count')
+         ax.set_title('Battery Charging Count per Month')
+
+         # Add labels on each data point
+         for month, count in zip(table_list, chargedCounts):
+            ax.text(month, count, str(count), ha='center', va='bottom')
+
+         canvas = FigureCanvasTkAgg(f, graphFrame)
+         canvas_widget = canvas.get_tk_widget()
+         canvas_widget.grid(row=0, column=0, sticky="n")
+
+         #Destroy the existing toolbar if it exists
+         if 'toolbar' in locals():
+            toolbar.grid_forget()
+
+         # Create a new navigation toolbar for zooming and panning
+         toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+         toolbar.update()
+         toolbar.grid(row=1, column=0, sticky="ew")
+
+      elif type == 'monthly':
+         ...
+      elif type == 'weekly':
+         ...
+      else:
+         print('Something went wrong.')
+
 
 class AppGUI: 
    def __init__(self):
@@ -233,7 +286,6 @@ class AppGUI:
       window.geometry(f'{self.appWidth}x{self.appHeight}+{int(x)}+{int(y)}')
 
       self.func = AppFunctions()
-
       self.main()
 
    def main(self):
@@ -260,7 +312,7 @@ class AppGUI:
       searchYear = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
       searchYear.grid(row=0, column=1, ipady=5, padx=10, pady=10)
 
-      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', bg='#fefae0', cursor="hand2", command=lambda: self.func.searchQuery(searchMonth.get(), searchYear.get()))
+      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', bg='#fefae0', cursor="hand2", command=lambda:self.func.searchQuery(searchMonth.get(), searchYear.get())) #self.func.chargedCountsGraph('yearly')
       button.grid(row=1, column=0, pady=3, ipadx=15)
       button.configure(activebackground='#e9edc9')
 
@@ -300,7 +352,7 @@ class AppGUI:
       graphFrame.pack(fill='both', expand=True)
 
       bottomInfoFrame = Frame(graphFrame, relief='groove', border=1, height=100, bg='#eaf4f4')
-      bottomInfoFrame.pack(side=BOTTOM, fill=X)
+      bottomInfoFrame.grid(row=2, column=0, sticky='nswe')
 
       batteryInfo = Label(bottomInfoFrame, text=f"", bg='#eaf4f4', fg='#023047', font=('Arial', 10))
       batteryInfo.pack(side="bottom", pady=15)
