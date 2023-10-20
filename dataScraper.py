@@ -22,7 +22,6 @@ def batteryCharged(yPoints):
     return batteryChargedCount
 
 
-
 def yearly():
    chargedCounts = []
    for month in months:

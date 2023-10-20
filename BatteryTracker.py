@@ -4,6 +4,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import sqlite3 as sql
 import datetime
 import matplotlib.pyplot as plt
+import numpy as np
+import threading
 import matplotlib
 
 matplotlib.use('TkAgg')
@@ -26,7 +28,7 @@ class animations:
    def __init__(self) -> None:
       pass
 
-class colorPalette:
+class colorPalette:#Feature for the V3 design
    def __init__(self) -> None:
       self.primaryC = '#b5bab7'
       self.secondaryC = '#D0CDCF'
@@ -93,18 +95,16 @@ class AppFunctions:
       return hours, minutes
 
    def getData(self, month, day, year):
-      import numpy as np
-
       Ypoints = np.array([])
       Xpoints = np.array([])
 
       xDataFAvg = []
       yDataFAvg = []
+      model_data = []
 
       if month and day and year:
          try:
             data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
-            
             for i, x in enumerate(data):
                Ypoints = np.append(Ypoints, [x[0]])
 
@@ -115,16 +115,22 @@ class AppFunctions:
 
                yDataFAvg.append(x[0])
                xDataFAvg.append(total_min)
+               model_data.append((x[2], x[0]))
 
+            model_data = np.array(model_data)
+            
             self.createGraph(Xpoints, Ypoints, day) #calls the function to create the graph
 
-            batteryCharg = self.batteryCharged(Ypoints)
-            averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)
+            if now.strftime("%a %d") == day and len(Xpoints) >= 3: #It works only on the current day, when there are more than 3 xpoints
+               threading.Thread(target=self.linear_model, args=(model_data, Xpoints, Ypoints), daemon=True).start()#linear function thread so it doesn't slow down the main thread
+
+            batteryCharg = self.batteryCharged(Ypoints)#get battery charged count
+            averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)# get avg battery
 
             #Labels for how many times batt was charged and average life of the battery
-            batteryInfo.config(text=f"Battery Charged: {batteryCharg} time/s | Avg battery life while the device is used: ≈{averBatt[0]} hours and {averBatt[1]:.0f} minutes") 
-
-            errorLabel.config(text="")
+            battery_info.config(text=f"Average batter: ≈{averBatt[0]}h:{averBatt[1]:.0f}m | Battery charged: {batteryCharg} {"times" if batteryCharg > 1 else "time"}")            
+            
+            errorLabel.config(text="")#clear errorLabel
 
          except Exception as e:
             errorLabel.config(text=f"{e}")
@@ -165,8 +171,62 @@ class AppFunctions:
       else:
          errorLabel.config(text="Empty inputs!.")
 
+   def prepare_data(self, data, interval=2):      
+      X = []
+      Y = []
+      for i in range(len(data) - interval):
+         features = data[i:i+interval, 1]  # Battery percentage values
+         target = data[i+interval, 1] - data[i, 1]  # Battery percentage change over the interval
+         # Exclude differences greater than or equal to 10%
+         if abs(target) < 11:
+            X.append(features)
+            Y.append(target)
+
+      # Convert lists to numpy arrays
+      X = np.array(X)
+      Y = np.array(Y)
+      
+      sample_input = X[-1]
+
+      return sample_input
+   
+   def linear_model(self, data, x, y): #TODO: out of axis 0 error, fix.
+      try: 
+         import joblib
+         model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl")
+
+         predicted_change = model.predict([self.prepare_data(data)])
+         last_actual_data = data[-1, 1]
+
+         predicted_battery = int([last_actual_data + np.sum(predicted_change[:i+1]) for i in range(len(predicted_change))][0])
+
+         last_x = x[-1]  #Last x value from the actual data
+         last_y = y[-1]  #Last y value from the actual data
+
+         #Extend y to include the predicted point
+         y = np.append(y, predicted_battery)
+
+         #Connect the actual data endpoint with the predicted point
+         ax.plot([last_x, len(x)], [last_y, predicted_battery], c='gray', linestyle='solid')
+
+         # Extend x to include the position for "later" and set the last label
+         x = np.append(x, len(x))
+         x_labels = list(x)  #Convert x to a list to modify it
+         x_labels[-1] = 'later'  #Set the last label to 'later'
+         ax.set_xticks(x)
+         ax.set_xticklabels(x_labels)
+
+         ax.scatter([len(x) - 1], [predicted_battery], color='black', s=15, marker='o', linewidth=2, zorder=5)
+         ax.annotate(f'{predicted_battery}%', (len(x) - 1, predicted_battery), textcoords='offset points', xytext=(-15, -5), ha='center', fontsize=11, color='black')
+
+         canvas.draw()
+      
+      except Exception as e:
+         print(f'{e}')
+         errorLabel.config(text=f'Something went wrong with the linear model: {e}.')
+
    def createGraph(self, x, y, day):
-      global f, ax
+      global f, ax, canvas
 
       f = plt.Figure(figsize=(15, 6), dpi=80) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
       ax = f.add_subplot()
@@ -174,21 +234,21 @@ class AppFunctions:
       for i in range(1, len(y)):
          # Calculate the difference between consecutive y-values
          diff = y[i] - y[i-1]
+         
          if diff <= -6:
-            # If the difference is <= -6, use the line style and color for "High"
+            #If the difference is <= -6, use the line style and color for "High"
             lineStyle = "solid"
             color = 'red'
          elif diff <= -4:
-            # If the difference is <= -4, use the line style and color for "Normal"
+            #If the difference is <= -4, use the line style and color for "Normal"
             lineStyle = "dashed"
             color = 'orange'
-
          else:
-            # If the difference is > -4, use the line style and color for "Low"
+            #If the difference is > -4, use the line style and color for "Low"
             lineStyle = "dotted"
             color = 'green'
 
-         # Plot the line segment with the appropriate line style and color
+         #Plot the line segment with the appropriate line style and color
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color, linestyle=lineStyle)
 
       minimum = min(y)  # Find the minimum y value
@@ -212,6 +272,8 @@ class AppFunctions:
       ax.plot([], [], color='red', linestyle='solid', label='Battery Used >= 6')
       ax.plot([], [], color='orange', linestyle='dashed', label='Battery Used >= 4')
       ax.plot([], [], color='green', linestyle='dotted', label='Battery Used <= 3')
+      ax.plot([], [], color='gray', linestyle='solid', label='Predicted battery %')
+
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
       ax.legend(loc='upper right')  # Display the legend in the top-right corner
       
@@ -232,47 +294,13 @@ class AppFunctions:
       chargedCounts = []
 
       if type == 'yearly': #NOTE: fix this
-         cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
-         #Fetch all the table names as a list of tuples
-         table_names = cur.fetchall()
-         #Extract table names from the tuples and save them in a list
-         table_list = [table[0] for table in table_names]
-
-         for month in table_list:
-            data = conn.execute(f"SELECT * FROM {month};").fetchall()
-            points = [row[0] for row in data]
-            chargedCounts.append(self.batteryCharged(points))
-
-         # Create a line plot
-         ax.plot(table_list, chargedCounts, marker='o', linestyle='-', color='b')
-         ax.set_xlabel('Month')
-         ax.set_ylabel('Charging Count')
-         ax.set_title('Battery Charging Count per Month')
-
-         # Add labels on each data point
-         for month, count in zip(table_list, chargedCounts):
-            ax.text(month, count, str(count), ha='center', va='bottom')
-
-         canvas = FigureCanvasTkAgg(f, graphFrame)
-         canvas_widget = canvas.get_tk_widget()
-         canvas_widget.grid(row=0, column=0, sticky="n")
-
-         #Destroy the existing toolbar if it exists
-         if 'toolbar' in locals():
-            toolbar.grid_forget()
-
-         # Create a new navigation toolbar for zooming and panning
-         toolbar = NavigationToolbar2Tk(canvas, graphFrame)
-         toolbar.update()
-         toolbar.grid(row=1, column=0, sticky="ew")
-
+        ...
       elif type == 'monthly':
          ...
       elif type == 'weekly':
          ...
       else:
          print('Something went wrong.')
-
 
 class AppGUI: 
    def __init__(self):
@@ -289,7 +317,7 @@ class AppGUI:
       self.main()
 
    def main(self):
-      global errorLabel, graphFrame, batteryInfo, my_tree, dataFrame
+      global errorLabel, graphFrame, battery_info, my_tree, dataFrame
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
       sideFrame.pack(side=LEFT, fill='y')
@@ -353,12 +381,12 @@ class AppGUI:
 
       bottomInfoFrame = Frame(graphFrame, relief='groove', border=1, height=100, bg='#eaf4f4')
       bottomInfoFrame.grid(row=2, column=0, sticky='nswe')
-
-      batteryInfo = Label(bottomInfoFrame, text=f"", bg='#eaf4f4', fg='#023047', font=('Arial', 10))
-      batteryInfo.pack(side="bottom", pady=15)
-
+      
       errorLabel = Label(bottomInfoFrame, text=f'', fg='#e63946')
-      errorLabel.pack(side="bottom", pady=10)
+      errorLabel.pack(side="top", pady=10)
+
+      battery_info = Label(bottomInfoFrame, text=f"", bg='#eaf4f4', fg='#023047', font=('Arial', 10))
+      battery_info.pack(side="bottom", pady=15)
 
       my_tree.bind("<Double-1>", lambda e: self.func.helperFunc(searchMonth.get()))
 
@@ -372,7 +400,6 @@ class AppGUI:
       graphFrame.grid_rowconfigure(0, weight=1)
       graphFrame.grid_columnconfigure(0, weight=1)
 
-
       graphFrame.pack_propagate(False)
       bottomInfoFrame.pack_propagate(False)
       searchFrame.grid_propagate(False)
@@ -384,7 +411,5 @@ class AppGUI:
 
 
 AppGUI()
-
 window.bind('<Button>', lambda event: event.widget.focus_set())
-#window.resizable(False, False) 
 window.mainloop()
