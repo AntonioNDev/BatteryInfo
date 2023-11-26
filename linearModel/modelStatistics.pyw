@@ -7,18 +7,21 @@ import os
 import datetime
 from sklearn.metrics import mean_absolute_error
 
-log_folder = "logs"
+log_folder = "C:/Users/Antonio/Documents/MyProjects/BatteryInfo/logs"
 if not os.path.exists(log_folder):
-   os.makedirs(log_folder)
+    os.makedirs(log_folder)
 
-logging.basicConfig(filename=f'../logs/modelInfo.log', level=logging.INFO, format='%(message)s')
-logging
+# Set up logging with a custom format
+log_filename = f'{log_folder}/modelInfo.log'
+logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(message)s')
+logger = logging.getLogger()
+
 conn = sqlite3.connect('database.db')
 cur = conn.cursor()
 
 class ModelStats:
    def __init__(self):
-      self.model = joblib.load('linear_regression_model.pkl')
+      self.model = joblib.load('C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl')
       self.correct_predictions = 0
       self.total_predictions = 0
       self.total_error = 0.0
@@ -82,12 +85,13 @@ class ModelStats:
             if abs(current_battery - feature) <= 3.0:  # Define a threshold for correctness
                self.correct_predictions += 1
 
-            logging.info(f"CurrentBP: {current_battery} | PredictedBP: {feature} | MAError: {mae} \n\t")
-            try:
-               logging.info(f"Total Predictions: {self.total_predictions if self.total_predictions > 0 else 0} | Correct Pred: { self.correct_predictions if self.correct_predictions > 0 else 0} | Accuracy: {(self.correct_predictions / self.total_predictions * 100) if self.total_predictions > 0 else 0} | MeanABS: {(self.total_error / self.total_predictions) if self.total_predictions > 0 else 0} \n\t")
+            logging.info(f"Date/Time: {datetime.datetime.now()} | CurrentBP: {current_battery} | PredictedBP: {feature} | MAError: {mae}")
             
+            try:
+               logging.info(f"Date/Time: {datetime.datetime.now()} | Total Predictions: {self.total_predictions if self.total_predictions > 0 else 0} | Correct Pred: {self.correct_predictions if self.correct_predictions > 0 else 0} | Accuracy: {(self.correct_predictions / self.total_predictions * 100) if self.total_predictions > 0 else 0} | MeanABS: {(self.total_error / self.total_predictions) if self.total_predictions > 0 else 0} /n/t")
+           
             except Exception as e:
-               logging.info(f'error: {e}')
+               logging.info(f"Date/Time: {datetime.datetime.now()} | error: {e}")
                pass 
 
 

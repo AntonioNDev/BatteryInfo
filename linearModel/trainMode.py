@@ -5,7 +5,7 @@ import joblib
 import matplotlib.pyplot as plt
 
 # Connect to the database
-conn = sqlite3.connect('database.db')
+conn = sqlite3.connect('../database.db')
 cur = conn.cursor()
 
 X = []  # Features (battery percentage differences)
@@ -13,7 +13,7 @@ Y = []  # Target (battery percentage change for future time interval)
 
 # Define the time intervals for prediction (e.g., 30 minutes)
 prediction_interval = 2
-months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep']
+months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct']
 
 # Iterate over the database data and calculate differences
 for month in months:

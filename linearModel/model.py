@@ -34,7 +34,7 @@ X = np.array(X)
 Y = np.array(Y)
 
 # Load the saved model
-loaded_model = joblib.load('linear_regression_model.pkl')
+loaded_model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl")
 
 # Now, you can use the trained model to make predictions
 # Let's test it with a sample input (battery percentage differences)

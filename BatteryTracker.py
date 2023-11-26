@@ -34,7 +34,7 @@ class colorPalette:#Feature for the V3 design
       self.secondaryC = '#D0CDCF'
       self.accentC = '#656C67'
 
-class AppFunctions:
+class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE OLD ONE.
    def avgBattLife(self, xPoints, yPoints):
       pairs = []
       calc = []
@@ -54,13 +54,9 @@ class AppFunctions:
 
             startIndex = i+1
                
-      restOfTheNums = yPoints[startIndex:len(yPoints)]
-      min_num = min(restOfTheNums) 
-      max_num = max(restOfTheNums)
+      rest_of_the_nums = yPoints[startIndex:]
+      pairs.extend((max(rest_of_the_nums), min(rest_of_the_nums)))
 
-      pairs.append(max_num)
-      pairs.append(min_num)
-      
       # Build a dictionary of indices for the elements in yPoints
       for i, y in enumerate(yPoints):
          yPointIndices[y] = i
@@ -93,7 +89,7 @@ class AppFunctions:
       minutes = total % 60
 
       return hours, minutes
-
+   
    def getData(self, month, day, year):
       Ypoints = np.array([])
       Xpoints = np.array([])
@@ -137,7 +133,7 @@ class AppFunctions:
             
       else:
          errorLabel.config(text="Empty inputs!.")
-
+   
    def helperFunc(self, month):
       try:
          selected = my_tree.focus()
@@ -148,7 +144,7 @@ class AppFunctions:
          self.getData(month, day, year)
       except Exception as e:
          errorLabel.config(text=f"{e}")
-
+   
    def searchQuery(self, month, year):
       my_tree.delete(*my_tree.get_children())
       if month and year:
@@ -170,7 +166,7 @@ class AppFunctions:
             
       else:
          errorLabel.config(text="Empty inputs!.")
-
+   
    def prepare_data(self, data, interval=2):      
       X = []
       Y = []
@@ -190,15 +186,15 @@ class AppFunctions:
 
       return sample_input
    
-   def linear_model(self, data, x, y): #TODO: out of axis 0 error, fix.
+   def linear_model(self, data, x, y):
       try: 
          import joblib
-         model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl")
-
-         predicted_change = model.predict([self.prepare_data(data)])
+         self.model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl")
+         
+         predicted_change = self.model.predict([self.prepare_data(data)])
          last_actual_data = data[-1, 1]
 
-         predicted_battery = int([last_actual_data + np.sum(predicted_change[:i+1]) for i in range(len(predicted_change))][0])
+         predicted_battery = int(np.sum([last_actual_data + np.sum(predicted_change[:i+1]) for i in range(len(predicted_change))]))
 
          last_x = x[-1]  #Last x value from the actual data
          last_y = y[-1]  #Last y value from the actual data
@@ -223,8 +219,8 @@ class AppFunctions:
       
       except Exception as e:
          print(f'{e}')
-         errorLabel.config(text=f'Something went wrong with the linear model: {e}.')
-
+         errorLabel.config(text=f'Something went wrong with the linear model: {e}.')  
+  
    def createGraph(self, x, y, day):
       global f, ax, canvas
 
@@ -275,8 +271,8 @@ class AppFunctions:
       ax.plot([], [], color='gray', linestyle='solid', label='Predicted battery %')
 
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
-      ax.legend(loc='upper right')  # Display the legend in the top-right corner
-      
+      ax.legend(loc='upper right')  #Display the legend in the top-right corner
+
       canvas = FigureCanvasTkAgg(f, graphFrame)
       canvas_widget = canvas.get_tk_widget()
       canvas_widget.grid(row=0, column=0, sticky="n")
@@ -285,11 +281,11 @@ class AppFunctions:
       if 'toolbar' in locals():
          toolbar.grid_forget()
 
-      # Create a new navigation toolbar for zooming and panning
+      #Create a new navigation toolbar for zooming and panning
       toolbar = NavigationToolbar2Tk(canvas, graphFrame)
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
-
+   
    def chargedCountsGraph(self, type):
       chargedCounts = []
 
