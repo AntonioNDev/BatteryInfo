@@ -2,22 +2,30 @@ import sqlite3
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
+import datetime
 
 # Connect to the database
-conn = sqlite3.connect('database.db')
+conn = sqlite3.connect('C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db')
 cur = conn.cursor()
 
 X = []  # Features (battery percentage differences)
 Y = []  # Target (battery percentage change for future time interval)
+
+now = datetime.datetime.now()
+
+day = now.strftime("%a %d")
+month = now.strftime("%b")
+year = now.strftime("%Y")
 
 # Define the time intervals for prediction (e.g., 3 minutes)
 prediction_interval = 2
 
 # Iterate over the database data and calculate differences
 
-cur.execute(f"SELECT time, batteryPerc FROM Oct WHERE day ='Mon 16';")
+cur.execute(f"SELECT time, batteryPerc FROM {month} WHERE day ='{day}';")
 data = cur.fetchall()
 data = np.array(data)
+print(data)
     
 # Calculate battery percentage differences for the chosen interval
 for i in range(len(data) - prediction_interval):
@@ -33,6 +41,7 @@ for i in range(len(data) - prediction_interval):
 X = np.array(X)
 Y = np.array(Y)
 
+print(X,Y)
 # Load the saved model
 loaded_model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl")
 
@@ -45,7 +54,7 @@ predicted_change = loaded_model.predict([sample_input])
 print(predicted_change)
 
 # Get the actual battery percentage data for a specific day in September
-cur.execute("SELECT time, batteryPerc FROM Oct WHERE day='Mon 16';")
+cur.execute(f"SELECT time, batteryPerc FROM {month} WHERE day='{day}';")
 actual_data = cur.fetchall()
 actual_data = np.array(actual_data)
 

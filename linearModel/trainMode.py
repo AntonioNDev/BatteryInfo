@@ -3,9 +3,10 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import joblib
 import matplotlib.pyplot as plt
+import datetime
 
 # Connect to the database
-conn = sqlite3.connect('../database.db')
+conn = sqlite3.connect('C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db')
 cur = conn.cursor()
 
 X = []  # Features (battery percentage differences)
@@ -13,7 +14,12 @@ Y = []  # Target (battery percentage change for future time interval)
 
 # Define the time intervals for prediction (e.g., 30 minutes)
 prediction_interval = 2
-months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct']
+months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+now = datetime.datetime.now()
+
+day = now.strftime("%a %d")
+month = now.strftime("%b")
 
 # Iterate over the database data and calculate differences
 for month in months:
@@ -47,10 +53,10 @@ model = LinearRegression()
 model.fit(X, Y)
 
 # Save the trained model to a file
-joblib.dump(model, 'linear_regression_model.pkl')
+joblib.dump(model, 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl')
 
 # Load the saved model
-loaded_model = joblib.load('linear_regression_model.pkl')
+loaded_model = joblib.load('C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl')
 
 # Now, you can use the trained model to make predictions
 # Let's test it with a sample input (battery percentage differences)
@@ -61,7 +67,7 @@ print(X, sample_input)
 predicted_change = loaded_model.predict([sample_input])
 
 # Get the actual battery percentage data for a specific day in September
-cur.execute("SELECT time, batteryPerc FROM Oct WHERE day='Mon 16';")
+cur.execute(f"SELECT time, batteryPerc FROM {month} WHERE day='{day}';")
 actual_data = cur.fetchall()
 actual_data = np.array(actual_data)
 
@@ -80,7 +86,7 @@ plt.plot(timestamps, actual_data[:, 1], label='Actual Data', marker='o', linesty
 # Extend the plot for predicted data in the future
 last_actual_point = actual_data[-1, 1]
 predicted_future_data = [last_actual_point + np.sum(predicted_change[:i+1]) for i in range(len(predicted_change))]
-plt.plot(future_timestamps, predicted_future_data, label='Predicted Data (Future)', marker='x', linestyle='--')
+plt.plot(future_timestamps, predicted_future_data, label=f'Predicted Data (Future) for {day}', marker='x', linestyle='--')
 
 # Set labels and title
 plt.xlabel("Time")

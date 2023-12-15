@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import threading
 import matplotlib
+from timsi import timing
 
 matplotlib.use('TkAgg')
 now = datetime.datetime.now()
@@ -166,23 +167,20 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
             
       else:
          errorLabel.config(text="Empty inputs!.")
-   
-   def prepare_data(self, data, interval=2):      
-      X = []
-      Y = []
-      for i in range(len(data) - interval):
-         features = data[i:i+interval, 1]  # Battery percentage values
-         target = data[i+interval, 1] - data[i, 1]  # Battery percentage change over the interval
-         # Exclude differences greater than or equal to 10%
-         if abs(target) < 11:
-            X.append(features)
-            Y.append(target)
 
-      # Convert lists to numpy arrays
+   def prepare_data(self, data, interval=2): #interval=2 is how many samples will the model accept, because it's trained to work with 2, it only needs 2 samples
+      X = []
+
+      for i in range(len(data)-6, len(data) - interval):
+         target = data[i+1, 1] - data[i, 1]  #Battery percentage change over the interval
+
+         #Exclude differences greater than 13%
+         if abs(target) < 12:
+            X.append(target)
+
+      #Convert lists to numpy arrays
       X = np.array(X)
-      Y = np.array(Y)
-      
-      sample_input = X[-1]
+      sample_input = X[-2:]
 
       return sample_input
    
@@ -220,11 +218,11 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
       except Exception as e:
          print(f'{e}')
          errorLabel.config(text=f'Something went wrong with the linear model: {e}.')  
-  
+   
    def createGraph(self, x, y, day):
       global f, ax, canvas
 
-      f = plt.Figure(figsize=(15, 6), dpi=80) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
+      f = plt.Figure(figsize=(16, 6), dpi=80) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
       ax = f.add_subplot()
 
       for i in range(1, len(y)):
@@ -246,7 +244,6 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
 
          #Plot the line segment with the appropriate line style and color
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color, linestyle=lineStyle)
-
       minimum = min(y)  # Find the minimum y value
       for i in range(1, len(y)):
          if y[i] > y[i - 1]:
