@@ -4,10 +4,10 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import sqlite3 as sql
 import datetime
 import matplotlib.pyplot as plt
+import gc
 import numpy as np
 import threading
 import matplotlib
-from timsi import timing
 
 matplotlib.use('TkAgg')
 now = datetime.datetime.now()
@@ -35,8 +35,8 @@ class colorPalette:#Feature for the V3 design
       self.secondaryC = '#D0CDCF'
       self.accentC = '#656C67'
 
-class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE OLD ONE.
-   def avgBattLife(self, xPoints, yPoints):
+class AppFunctions:
+   def avgBattLife(self, xPoints, yPoints) -> list:
       pairs = []
       calc = []
       yPointIndices = {}
@@ -76,7 +76,7 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
 
       return [hours, minutes]
 
-   def batteryCharged(self, yPoints):
+   def batteryCharged(self, yPoints) -> int:
       batteryChargedToday = 0
 
       for x in range(0, len(yPoints) - 1):
@@ -85,7 +85,7 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
 
       return batteryChargedToday 
    
-   def minutesToHours(self, total):
+   def minutesToHours(self, total) -> int:
       hours = int(total) // 60 #Convert minutes in hours and minutes... 
       minutes = total % 60
 
@@ -119,7 +119,7 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
             self.createGraph(Xpoints, Ypoints, day) #calls the function to create the graph
 
             if now.strftime("%a %d") == day and len(Xpoints) >= 3: #It works only on the current day, when there are more than 3 xpoints
-               threading.Thread(target=self.linear_model, args=(model_data, Xpoints, Ypoints), daemon=True).start()#linear function thread so it doesn't slow down the main thread
+               threading.Thread(target=self.linear_model, args=(model_data, Xpoints, Ypoints), daemon=True).start()#linear function thread so it doesn't slow down the main thread              
 
             batteryCharg = self.batteryCharged(Ypoints)#get battery charged count
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)# get avg battery
@@ -168,7 +168,7 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
       else:
          errorLabel.config(text="Empty inputs!.")
 
-   def prepare_data(self, data, interval=2): #interval=2 is how many samples will the model accept, because it's trained to work with 2, it only needs 2 samples
+   def prepare_data(self, data, interval=2) -> int: #interval=2 is how many samples will the model accept, because it's trained to work with 2, it only needs 2 samples
       X = []
 
       for i in range(len(data)-6, len(data) - interval):
@@ -200,29 +200,43 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
          #Extend y to include the predicted point
          y = np.append(y, predicted_battery)
 
-         #Connect the actual data endpoint with the predicted point
-         ax.plot([last_x, len(x)], [last_y, predicted_battery], c='gray', linestyle='solid')
+         if canvas:
+            #Connect the actual data endpoint with the predicted point
+            ax.plot([last_x, len(x)], [last_y, predicted_battery], c='gray', linestyle='solid')
 
-         # Extend x to include the position for "later" and set the last label
-         x = np.append(x, len(x))
-         x_labels = list(x)  #Convert x to a list to modify it
-         x_labels[-1] = 'later'  #Set the last label to 'later'
-         ax.set_xticks(x)
-         ax.set_xticklabels(x_labels)
+            # Extend x to include the position for "later" and set the last label
+            x = np.append(x, len(x))
+            x_labels = list(x)  #Convert x to a list to modify it
+            x_labels[-1] = 'later'  #Set the last label to 'later'
+            ax.set_xticks(x)
+            ax.set_xticklabels(x_labels)
 
-         ax.scatter([len(x) - 1], [predicted_battery], color='black', s=15, marker='o', linewidth=2, zorder=5)
-         ax.annotate(f'{predicted_battery}%', (len(x) - 1, predicted_battery), textcoords='offset points', xytext=(-15, -5), ha='center', fontsize=11, color='black')
+            ax.scatter([len(x) - 1], [predicted_battery], color='black', s=15, marker='o', linewidth=2, zorder=5)
+            ax.annotate(f'{predicted_battery}%', (len(x) - 1, predicted_battery), textcoords='offset points', xytext=(-15, -5), ha='center', fontsize=11, color='black')
 
-         canvas.draw()
+            canvas.draw()
       
       except Exception as e:
-         print(f'{e}')
          errorLabel.config(text=f'Something went wrong with the linear model: {e}.')  
    
-   def createGraph(self, x, y, day):
-      global f, ax, canvas
+   def clearGraphs(self, gcC=False): #This function is used to clear the graph so there's not any duplicate graphs
+      global f, ax, canvas, toolbar
 
-      f = plt.Figure(figsize=(16, 6), dpi=80) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
+      if 'canvas' in globals():
+         canvas.get_tk_widget().destroy()
+
+      if 'toolbar' in globals():
+         toolbar.destroy()
+         del toolbar
+
+      if gcC:
+         gc.collect()
+
+   def createGraph(self, x, y, day):
+      self.clearGraphs(True)
+      global f, ax, canvas, toolbar
+
+      f = plt.Figure(figsize=(16, 6), dpi=75) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
       ax = f.add_subplot()
 
       for i in range(1, len(y)):
@@ -244,6 +258,7 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
 
          #Plot the line segment with the appropriate line style and color
          ax.plot(x[i-1:i+1], y[i-1:i+1], c=color, linestyle=lineStyle)
+
       minimum = min(y)  # Find the minimum y value
       for i in range(1, len(y)):
          if y[i] > y[i - 1]:
@@ -272,7 +287,7 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
 
       canvas = FigureCanvasTkAgg(f, graphFrame)
       canvas_widget = canvas.get_tk_widget()
-      canvas_widget.grid(row=0, column=0, sticky="n")
+      canvas_widget.grid(row=0, column=0, sticky="nswe")
 
       #Destroy the existing toolbar if it exists
       if 'toolbar' in locals():
@@ -283,17 +298,43 @@ class AppFunctions: #TODO: FIX MEMORY LEAK WHEN NEW ELEMENT CREATED DELETE THE O
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
    
-   def chargedCountsGraph(self, type):
-      chargedCounts = []
+   def dataAnalyse(self):
+      self.clearGraphs(True)
+      months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-      if type == 'yearly': #NOTE: fix this
-        ...
-      elif type == 'monthly':
-         ...
-      elif type == 'weekly':
-         ...
-      else:
-         print('Something went wrong.')
+      chargedCounts = []
+      for month in months:
+         data = conn.execute(f"SELECT * FROM {month};").fetchall()
+         points = [row[0] for row in data]
+         chargedCounts.append(self.batteryCharged(points))
+
+      # Create a line plot
+      f = plt.Figure(figsize=(16, 6), dpi=75)
+      ax = f.add_subplot()
+      ax.plot(months, chargedCounts, marker='o', linestyle='-', color='b')
+      ax.set_xlabel('Month')
+      ax.set_ylabel('Charging Count')
+      ax.set_title('Battery Charging Count per Month')
+
+      # Add labels on each data point
+      for month, count in zip(months, chargedCounts):
+         ax.annotate(str(count), (month, count), textcoords='offset points', xytext=(0, 5), ha='center', va='bottom')
+
+      ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
+
+      canvas = FigureCanvasTkAgg(f, graphFrame)
+      canvas_widget = canvas.get_tk_widget()
+      canvas_widget.grid(row=0, column=0, sticky="nswe")
+
+      # Destroy the existing toolbar if it exists
+      if 'toolbar' in locals():
+         toolbar.grid_forget()
+
+      # Create a new navigation toolbar for zooming and panning
+      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+      toolbar.update()
+      toolbar.grid(row=1, column=0, sticky="ew")
+
 
 class AppGUI: 
    def __init__(self):
@@ -303,7 +344,7 @@ class AppGUI:
       self.screen_h = window.winfo_screenheight()
 
       x = (self.screen_w / 2) - (self.appWidth) + 600
-      y = (self.screen_h / 2) - (self.appHeight) + 350
+      y = (self.screen_h / 2) - (self.appHeight) + 350 # x and y so the app shows in the center of the screen
       window.geometry(f'{self.appWidth}x{self.appHeight}+{int(x)}+{int(y)}')
 
       self.func = AppFunctions()
@@ -322,7 +363,7 @@ class AppGUI:
       dataFrame.grid(row=1, column=0)
       
       mainFrame = Frame(window, relief='sunken')
-      mainFrame.pack(side=RIGHT, fill='both', expand=True)  # Use grid for mainFrame
+      mainFrame.pack(side=RIGHT, fill='both', expand=True)
 
       #######################################################################################################################
       #records frame inputs and labels
@@ -351,7 +392,6 @@ class AppGUI:
          fieldbackground="white"
       )
 
-
       my_tree = ttk.Treeview(dataFrame, yscrollcommand=tree_scroll.set)
       my_tree.pack(ipadx=50, ipady=180, fill=BOTH, expand=True)
 
@@ -368,7 +408,19 @@ class AppGUI:
       my_tree.heading("Year", text="Year", anchor=CENTER)
 
       ####################################################################################################
-      #bottom graph frame
+      #side graph and menu frame
+      menuBar = Frame(mainFrame, border=1, height=100, bg=colorPalette().accentC)
+      menuBar.pack(fill=BOTH, expand=True)
+
+      openMenu = Button(menuBar, text="Menu")
+      openMenu.pack(side="left", padx=5, pady=2)
+
+      anlData = Button(menuBar, text="Analyse data", command=self.func.dataAnalyse)
+      anlData.pack(side="left", padx=5, pady=2)
+
+      changeTheme = Button(menuBar, text="theme")
+      changeTheme.pack(side="right", padx=5, pady=2)
+
       graphFrame = Frame(mainFrame, relief='sunken', border=3, height=self.appHeight, bg='#ffffff', width=900)
       graphFrame.pack(fill='both', expand=True)
 
