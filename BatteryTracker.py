@@ -25,17 +25,29 @@ databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 conn = sql.connect(databasePath)
 cur = conn.cursor()
 
+# animations is not currently used but it will be future for menu sliding and other animations
 class animations:
    def __init__(self) -> None:
       pass
 
-class colorPalette:#Feature for the V3 design
+# colorPallete is for the colors of the app
+class colorPalette:
    def __init__(self) -> None:
       self.primaryC = '#b5bab7'
       self.secondaryC = '#D0CDCF'
       self.accentC = '#656C67'
 
+# AppFunctions with all methods for the app
 class AppFunctions:
+   def __init__(self) -> None:
+      self.stack = NavigationStack()
+
+   def backButton(self): # returns to the previus graph
+      self.stack.pop_call(self)
+   
+   def nextButton(self):
+      ...
+
    def avgBattLife(self, xPoints, yPoints) -> list:
       pairs = []
       calc = []
@@ -142,7 +154,8 @@ class AppFunctions:
          day = values[0]
          year = values[1]
 
-         self.getData(month, day, year)
+         self.stack.add(self.getData, month, day, year)
+         
       except Exception as e:
          errorLabel.config(text=f"{e}")
    
@@ -299,7 +312,9 @@ class AppFunctions:
       toolbar.grid(row=1, column=0, sticky="ew")
    
    def dataAnalyse(self):
-      self.clearGraphs(True)
+      self.clearGraphs(False)
+      #self.stack.add(self.dataAnalyse) BUG: FIX INF RECURSION
+
       months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
       chargedCounts = []
@@ -335,8 +350,45 @@ class AppFunctions:
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
 
+# Navigation class
+class NavigationStack(AppFunctions):
+   def __init__(self):
+      self.stack = []
+      self.current = None
 
-class AppGUI: 
+   #Call the function and add it to the stack
+   def add(self, function, *args, **kwargs):
+      if (function, args, kwargs) not in self.stack:  # Checks if the function is not already inside the stack
+         self.stack.append((function, args, kwargs))
+
+         if(len(self.stack) > 1): # if the length of the stack is greater than 1 the button BACK is active
+            backB.config(state='active')
+
+      result = function(*args, **kwargs)
+      self.current = (function, args, kwargs)
+
+      return result # calls getData(month, day, year) and graph is created
+
+   #call the last called function and pop it from the stack
+   def pop_call(self, instance):
+      if len(self.stack) < 2: # if the stack doesn't have more than 1 item, then the BACK button should be disabled
+         backB.config(state='disabled')
+
+      if not self.is_empty():
+         if self.current == self.stack[-1] and len(self.stack) > 1: # It checks if they are equal if yes then it pops the last item
+            self.stack.pop()                                        # so the current graph doesn't show twice and it moves to the second last graph
+
+         function, args, kwargs = self.stack.pop()
+         self.current = (function, args, kwargs) 
+
+         return function(*args, **kwargs) # calls the function to create a graph
+   
+   # is_empty returns true if the length of the stack is 0, and false if not
+   def is_empty(self) -> bool:
+      return len(self.stack) == 0
+
+# UI class
+class AppUI: 
    def __init__(self):
       self.appWidth = 1250
       self.appHeight = 750
@@ -348,10 +400,11 @@ class AppGUI:
       window.geometry(f'{self.appWidth}x{self.appHeight}+{int(x)}+{int(y)}')
 
       self.func = AppFunctions()
+      self.stack = NavigationStack()
       self.main()
 
    def main(self):
-      global errorLabel, graphFrame, battery_info, my_tree, dataFrame
+      global errorLabel, graphFrame, battery_info, my_tree, dataFrame, nextB, backB
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
       sideFrame.pack(side=LEFT, fill='y')
@@ -412,6 +465,12 @@ class AppGUI:
       menuBar = Frame(mainFrame, border=1, height=100, bg=colorPalette().accentC)
       menuBar.pack(fill=BOTH, expand=True)
 
+      backB = Button(menuBar, text="Back", state="disabled", command=self.func.backButton)
+      backB.pack(side="left", padx=5, pady=2)
+
+      nextB = Button(menuBar, text="Next", state='disabled', command=None)
+      nextB.pack(side="left", padx=5, pady=2)
+
       openMenu = Button(menuBar, text="Menu")
       openMenu.pack(side="left", padx=5, pady=2)
 
@@ -452,9 +511,9 @@ class AppGUI:
       graphFrame.grid_propagate(False)
    
       #Create graph when the app is started
-      self.func.getData(month, day, year)
+      self.stack.add(self.func.getData, month, day, year)
 
 
-AppGUI()
+AppUI()
 window.bind('<Button>', lambda event: event.widget.focus_set())
 window.mainloop()
