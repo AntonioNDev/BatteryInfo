@@ -41,12 +41,10 @@ class colorPalette:
 class AppFunctions:
    def __init__(self) -> None:
       self.stack = NavigationStack()
+      self.months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
    def backButton(self): # returns to the previus graph
       self.stack.pop_call(self)
-   
-   def nextButton(self):
-      ...
 
    def avgBattLife(self, xPoints, yPoints) -> list:
       pairs = []
@@ -91,13 +89,13 @@ class AppFunctions:
    def batteryCharged(self, yPoints) -> int:
       batteryChargedToday = 0
 
-      for x in range(0, len(yPoints) - 1):
+      for x in range(len(yPoints) - 1):
          if yPoints[x+1] > yPoints[x]:
             batteryChargedToday += 1
 
       return batteryChargedToday 
    
-   def minutesToHours(self, total) -> int:
+   def minutesToHours(self, total) -> tuple:
       hours = int(total) // 60 #Convert minutes in hours and minutes... 
       minutes = total % 60
 
@@ -181,19 +179,21 @@ class AppFunctions:
       else:
          errorLabel.config(text="Empty inputs!.")
 
-   def prepare_data(self, data, interval=2) -> int: #interval=2 is how many samples will the model accept, because it's trained to work with 2, it only needs 2 samples
+   def prepare_data(self, data) -> np.ndarray: #interval=2 is how many samples will the model accept, because it's trained to work with 2, it only needs 2 samples
       X = []
 
-      for i in range(len(data)-6, len(data) - interval):
-         target = data[i+1, 1] - data[i, 1]  #Battery percentage change over the interval
-
+      for i in range(0, len(data) - 1):
+         target = data[i, 1] - data[i+1, 1]  #Battery percentage change over the interval
+         print(f"{data[i+1,1]}-{data[i,1]}={target}")
          #Exclude differences greater than 13%
          if abs(target) < 12:
-            X.append(target)
+            X.append(abs(target))
 
       #Convert lists to numpy arrays
       X = np.array(X)
+      print(f"X:{X}")
       sample_input = X[-2:]
+      print(sample_input)
 
       return sample_input
    
@@ -302,37 +302,37 @@ class AppFunctions:
       canvas_widget = canvas.get_tk_widget()
       canvas_widget.grid(row=0, column=0, sticky="nswe")
 
+      #Create a new navigation toolbar for zooming and panning
+      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+
       #Destroy the existing toolbar if it exists
       if 'toolbar' in locals():
          toolbar.grid_forget()
 
-      #Create a new navigation toolbar for zooming and panning
-      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
    
    def dataAnalyse(self):
       self.clearGraphs(False)
-      #self.stack.add(self.dataAnalyse) BUG: FIX INF RECURSION
-
-      months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      #self.stack.add(self.dataAnalyse)
+      battery_info.config(text="")
 
       chargedCounts = []
-      for month in months:
-         data = conn.execute(f"SELECT * FROM {month};").fetchall()
+      for month in self.months:
+         data = conn.execute(f"SELECT * FROM {month} WHERE year='{year}';").fetchall()
          points = [row[0] for row in data]
          chargedCounts.append(self.batteryCharged(points))
 
       # Create a line plot
       f = plt.Figure(figsize=(16, 6), dpi=75)
       ax = f.add_subplot()
-      ax.plot(months, chargedCounts, marker='o', linestyle='-', color='b')
+      ax.bar(self.months, chargedCounts,color='b')
       ax.set_xlabel('Month')
       ax.set_ylabel('Charging Count')
       ax.set_title('Battery Charging Count per Month')
 
       # Add labels on each data point
-      for month, count in zip(months, chargedCounts):
+      for month, count in zip(self.months, chargedCounts):
          ax.annotate(str(count), (month, count), textcoords='offset points', xytext=(0, 5), ha='center', va='bottom')
 
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
@@ -341,12 +341,13 @@ class AppFunctions:
       canvas_widget = canvas.get_tk_widget()
       canvas_widget.grid(row=0, column=0, sticky="nswe")
 
+      # Create a new navigation toolbar for zooming and panning
+      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+
       # Destroy the existing toolbar if it exists
       if 'toolbar' in locals():
          toolbar.grid_forget()
 
-      # Create a new navigation toolbar for zooming and panning
-      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
 
@@ -465,17 +466,16 @@ class AppUI:
       menuBar = Frame(mainFrame, border=1, height=100, bg=colorPalette().accentC)
       menuBar.pack(fill=BOTH, expand=True)
 
+      ###BUTTONS###
       backB = Button(menuBar, text="Back", state="disabled", command=self.func.backButton)
       backB.pack(side="left", padx=5, pady=2)
 
-      nextB = Button(menuBar, text="Next", state='disabled', command=None)
-      nextB.pack(side="left", padx=5, pady=2)
-
-      openMenu = Button(menuBar, text="Menu")
-      openMenu.pack(side="left", padx=5, pady=2)
+      homeB = Button(menuBar, text="Home", command=None)
+      homeB.pack(side="left", padx=5, pady=2)
 
       anlData = Button(menuBar, text="Analyse data", command=self.func.dataAnalyse)
       anlData.pack(side="left", padx=5, pady=2)
+      ###BUTTONS###
 
       changeTheme = Button(menuBar, text="theme")
       changeTheme.pack(side="right", padx=5, pady=2)

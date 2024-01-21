@@ -25,7 +25,7 @@ def batteryCharged(yPoints):
 def yearly():
    chargedCounts = []
    for month in months:
-      data = conn.execute(f"SELECT * FROM {month};").fetchall()
+      data = conn.execute(f"SELECT * FROM {month} WHERE year='2024';").fetchall()
       points = [row[0] for row in data]
       chargedCounts.append(batteryCharged(points))
 
