@@ -10,6 +10,7 @@ import threading
 import matplotlib
 
 matplotlib.use('TkAgg')
+
 now = datetime.datetime.now()
 
 day = now.strftime("%a %d")
@@ -33,18 +34,51 @@ class animations:
 # colorPallete is for the colors of the app
 class colorPalette:
    def __init__(self) -> None:
-      self.primaryC = '#b5bab7'
-      self.secondaryC = '#D0CDCF'
-      self.accentC = '#656C67'
+      #default colors
+      self.mode = "light"
+      self.primaryC = '#eff2ef'
+      self.secondaryC = '#C9ADA7'
+      self.accentC = '#4f646f'
+      self.buttonColor = '#778da9'
+      self.disabledButton = "#0b525b"
+   
+   def lightBG(self):
+      #colors for light mode -> default colors
+      self.primaryC = '#eff2ef'
+      self.secondaryC = '#C9ADA7'
+      self.accentC = '#4f646f'
+      self.buttonColor = '#778da9'
+      self.disabledButton = "#0b525b"
+   
+   def darkBG(self):
+      #colors for dark mode
+      ...
 
 # AppFunctions with all methods for the app
 class AppFunctions:
-   def __init__(self) -> None:
-      self.stack = NavigationStack()
+   def __init__(self, navigationStack, colorPalette):
+      self.stack = navigationStack
+      self.colors = colorPalette
       self.months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+   def switchTheme(self):#TODO: make switch themes option
+      if self.colors.mode == "light":
+         self.colors.mode = "dark"
+
+         themeButton.config(text="Theme: dark")
+         self.colors.darkBG()
+
+      elif self.colors.mode == "dark":
+         self.colors.mode = "light"
+
+         themeButton.config(text="Theme: light")
+         self.colors.lightBG()
 
    def backButton(self): # returns to the previus graph
       self.stack.pop_call(self)
+   
+   def homeButton(self):
+      self.stack.add(self.getData, month, day, year)
 
    def avgBattLife(self, xPoints, yPoints) -> list:
       pairs = []
@@ -153,7 +187,6 @@ class AppFunctions:
          year = values[1]
 
          self.stack.add(self.getData, month, day, year)
-         
       except Exception as e:
          errorLabel.config(text=f"{e}")
    
@@ -184,23 +217,20 @@ class AppFunctions:
 
       for i in range(0, len(data) - 1):
          target = data[i, 1] - data[i+1, 1]  #Battery percentage change over the interval
-         print(f"{data[i+1,1]}-{data[i,1]}={target}")
          #Exclude differences greater than 13%
          if abs(target) < 12:
             X.append(abs(target))
 
       #Convert lists to numpy arrays
       X = np.array(X)
-      print(f"X:{X}")
       sample_input = X[-2:]
-      print(sample_input)
 
       return sample_input
    
    def linear_model(self, data, x, y):
       try: 
          import joblib
-         self.model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model.pkl")
+         self.model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model2024.pkl")
          
          predicted_change = self.model.predict([self.prepare_data(data)])
          last_actual_data = data[-1, 1]
@@ -250,7 +280,9 @@ class AppFunctions:
       global f, ax, canvas, toolbar
 
       f = plt.Figure(figsize=(16, 6), dpi=75) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
+
       ax = f.add_subplot()
+
 
       for i in range(1, len(y)):
          # Calculate the difference between consecutive y-values
@@ -288,6 +320,7 @@ class AppFunctions:
       ax.set_ylabel("Battery Percentage")
       ax.set_xlabel("Time")
       ax.set_title(f'Battery data for {day}')
+      
 
       # Manually specify the legend entries for red, orange, and green lines
       ax.plot([], [], color='red', linestyle='solid', label='Battery Used >= 6')
@@ -307,6 +340,7 @@ class AppFunctions:
 
       #Destroy the existing toolbar if it exists
       if 'toolbar' in locals():
+         print("toolbar deleted")
          toolbar.grid_forget()
 
       toolbar.update()
@@ -355,6 +389,7 @@ class AppFunctions:
 class NavigationStack(AppFunctions):
    def __init__(self):
       self.stack = []
+      self.colors = colorPalette()
       self.current = None
 
    #Call the function and add it to the stack
@@ -362,8 +397,8 @@ class NavigationStack(AppFunctions):
       if (function, args, kwargs) not in self.stack:  # Checks if the function is not already inside the stack
          self.stack.append((function, args, kwargs))
 
-         if(len(self.stack) > 1): # if the length of the stack is greater than 1 the button BACK is active
-            backB.config(state='active')
+      if(len(self.stack) >= 2): # if the length of the stack is greater than 1 the button BACK is active
+         backB.config(state='active', bg=f'{self.colors.buttonColor}')
 
       result = function(*args, **kwargs)
       self.current = (function, args, kwargs)
@@ -372,15 +407,19 @@ class NavigationStack(AppFunctions):
 
    #call the last called function and pop it from the stack
    def pop_call(self, instance):
-      if len(self.stack) < 2: # if the stack doesn't have more than 1 item, then the BACK button should be disabled
-         backB.config(state='disabled')
+      if len(self.stack) <= 1: # if the stack doesn't have more than 1 item, then the BACK button should be disabled
+         backB.config(state='disabled', bg=f'{self.colors.disabledButton}')
 
       if not self.is_empty():
          if self.current == self.stack[-1] and len(self.stack) > 1: # It checks if they are equal if yes then it pops the last item
             self.stack.pop()                                        # so the current graph doesn't show twice and it moves to the second last graph
+            
+            function, args, kwargs = self.stack.pop()
+            self.current = (function, args, kwargs)
 
-         function, args, kwargs = self.stack.pop()
-         self.current = (function, args, kwargs) 
+         else:
+            function, args, kwargs = self.stack.pop()
+            self.current = (function, args, kwargs) 
 
          return function(*args, **kwargs) # calls the function to create a graph
    
@@ -400,20 +439,21 @@ class AppUI:
       y = (self.screen_h / 2) - (self.appHeight) + 350 # x and y so the app shows in the center of the screen
       window.geometry(f'{self.appWidth}x{self.appHeight}+{int(x)}+{int(y)}')
 
-      self.func = AppFunctions()
       self.stack = NavigationStack()
+      self.colors = colorPalette()
+      self.func = AppFunctions(self.stack, self.colors)
       self.main()
 
    def main(self):
-      global errorLabel, graphFrame, battery_info, my_tree, dataFrame, nextB, backB
+      global errorLabel, graphFrame, battery_info, my_tree, dataFrame, nextB, backB, themeButton
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
       sideFrame.pack(side=LEFT, fill='y')
 
-      searchFrame = LabelFrame(sideFrame, height=130, width=350, bg=colorPalette().secondaryC, text='Month & Year')
+      searchFrame = LabelFrame(sideFrame, height=130, width=350, bg=f"{self.colors.primaryC}", text='Month & Year')
       searchFrame.grid(row=0, column=0, sticky='n')
 
-      dataFrame = LabelFrame(sideFrame, height=600, width=350, bg='#e5e5e5', relief='sunken', border=2, text=f'')
+      dataFrame = LabelFrame(sideFrame, height=600, width=350, bg=f'{self.colors.primaryC}', relief='sunken', border=2, text=f'')
       dataFrame.grid(row=1, column=0)
       
       mainFrame = Frame(window, relief='sunken')
@@ -424,13 +464,14 @@ class AppUI:
       
       searchMonth = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
       searchMonth.grid(row=0, column=0, ipady=5, padx=10, pady=10)
-
+      
       searchYear = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
-      searchYear.grid(row=0, column=1, ipady=5, padx=10, pady=10)
+      searchYear.grid(row=0, column=2, ipady=5, padx=10, pady=10)
 
-      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', bg='#fefae0', cursor="hand2", command=lambda:self.func.searchQuery(searchMonth.get(), searchYear.get())) #self.func.chargedCountsGraph('yearly')
+      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', fg='white', bg=f'{self.colors.buttonColor}', cursor="hand2", command=lambda:self.func.searchQuery(searchMonth.get(), searchYear.get())) #self.func.chargedCountsGraph('yearly')
       button.grid(row=1, column=0, pady=3, ipadx=15)
-      button.configure(activebackground='#e9edc9')
+      button.configure(activebackground='white')
+
 
       ###########################################Treeview#########################################################
 
@@ -440,10 +481,10 @@ class AppUI:
       style = ttk.Style()
       style.theme_use("clam")  
       style.configure("Treeview",
-         background="white",
+         background=f"{self.colors.primaryC}",
          foreground="#231942",
          rowheight=30,
-         fieldbackground="white"
+         fieldbackground=f"{self.colors.primaryC}"
       )
 
       my_tree = ttk.Treeview(dataFrame, yscrollcommand=tree_scroll.set)
@@ -463,33 +504,34 @@ class AppUI:
 
       ####################################################################################################
       #side graph and menu frame
-      menuBar = Frame(mainFrame, border=1, height=100, bg=colorPalette().accentC)
+      menuBar = Frame(mainFrame, border=1, height=100, bg=f"{self.colors.primaryC}")
       menuBar.pack(fill=BOTH, expand=True)
 
       ###BUTTONS###
-      backB = Button(menuBar, text="Back", state="disabled", command=self.func.backButton)
+      backB = Button(menuBar, text="Back", state="disabled", command=self.func.backButton, bg=f'{self.colors.disabledButton}', fg="white", cursor="hand2")
+      backB.configure(disabledforeground="white")
       backB.pack(side="left", padx=5, pady=2)
 
-      homeB = Button(menuBar, text="Home", command=None)
+      homeB = Button(menuBar, text="Home", command=self.func.homeButton, bg=f'{self.colors.buttonColor}', fg="white", cursor="hand2")
       homeB.pack(side="left", padx=5, pady=2)
 
-      anlData = Button(menuBar, text="Analyse data", command=self.func.dataAnalyse)
+      anlData = Button(menuBar, text="Analyse data", command=self.func.dataAnalyse, bg=f'{self.colors.buttonColor}', fg="white", cursor="hand2")
       anlData.pack(side="left", padx=5, pady=2)
+      
+      themeButton = Button(menuBar, text=f"Theme: {"light"}", bg=f'{self.colors.buttonColor}', fg='white', cursor="hand2", command=self.func.switchTheme)
+      themeButton.pack(side="right", padx=5, pady=2)
       ###BUTTONS###
 
-      changeTheme = Button(menuBar, text="theme")
-      changeTheme.pack(side="right", padx=5, pady=2)
-
-      graphFrame = Frame(mainFrame, relief='sunken', border=3, height=self.appHeight, bg='#ffffff', width=900)
+      graphFrame = Frame(mainFrame, relief='sunken', border=3, height=self.appHeight, bg=f"{self.colors.primaryC}", width=900)
       graphFrame.pack(fill='both', expand=True)
 
-      bottomInfoFrame = Frame(graphFrame, relief='groove', border=1, height=100, bg='#eaf4f4')
+      bottomInfoFrame = Frame(graphFrame, relief='groove', border=1, height=100, bg=f'{self.colors.primaryC}')
       bottomInfoFrame.grid(row=2, column=0, sticky='nswe')
       
-      errorLabel = Label(bottomInfoFrame, text=f'', fg='#e63946')
+      errorLabel = Label(bottomInfoFrame, text=f'', fg='#e63946', bg=f'{self.colors.primaryC}')
       errorLabel.pack(side="top", pady=10)
 
-      battery_info = Label(bottomInfoFrame, text=f"", bg='#eaf4f4', fg='#023047', font=('Arial', 10))
+      battery_info = Label(bottomInfoFrame, text=f"", bg=f'{self.colors.primaryC}', fg='#023047', font=('Arial', 10))
       battery_info.pack(side="bottom", pady=15)
 
       my_tree.bind("<Double-1>", lambda e: self.func.helperFunc(searchMonth.get()))
