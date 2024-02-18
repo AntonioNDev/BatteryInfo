@@ -11,7 +11,7 @@ import matplotlib
 
 matplotlib.use('TkAgg')
 
-now = datetime.datetime.now()
+now = datetime.datetime.now()#current time/date
 
 day = now.strftime("%a %d")
 month = now.strftime("%b")
@@ -20,11 +20,7 @@ year = now.strftime("%Y")
 window = Tk()
 window.title("Battery Tracker")
 window.iconbitmap("logo/logoNBW.ico")
-
 databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
-
-conn = sql.connect(databasePath)
-cur = conn.cursor()
 
 # animations is not currently used but it will be future for menu sliding and other animations
 class animations:
@@ -40,6 +36,7 @@ class colorPalette:
       self.secondaryC = '#C9ADA7'
       self.accentC = '#4f646f'
       self.buttonColor = '#778da9'
+      self.buttonColorD = '#84a98c'
       self.disabledButton = "#0b525b"
    
    def lightBG(self):
@@ -48,6 +45,7 @@ class colorPalette:
       self.secondaryC = '#C9ADA7'
       self.accentC = '#4f646f'
       self.buttonColor = '#778da9'
+      self.buttonColorD = '#84a98c'
       self.disabledButton = "#0b525b"
    
    def darkBG(self):
@@ -79,7 +77,7 @@ class AppFunctions:
    
    def homeButton(self):
       self.stack.add(self.getData, month, day, year)
-
+   
    def avgBattLife(self, xPoints, yPoints) -> list:
       pairs = []
       calc = []
@@ -119,8 +117,8 @@ class AppFunctions:
       hours, minutes = self.minutesToHours(resultInMinutes)
 
       return [hours, minutes]
-
-   def batteryCharged(self, yPoints) -> int:
+   
+   def batteryCharged(self, yPoints) -> int: #find a better way to calculate
       batteryChargedToday = 0
 
       for x in range(len(yPoints) - 1):
@@ -145,7 +143,10 @@ class AppFunctions:
 
       if month and day and year:
          try:
-            data = conn.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
+            with sql.connect(databasePath) as conn:
+               cursor = conn.cursor()
+               data = cursor.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
+
             for i, x in enumerate(data):
                Ypoints = np.append(Ypoints, [x[0]])
 
@@ -156,7 +157,7 @@ class AppFunctions:
 
                yDataFAvg.append(x[0])
                xDataFAvg.append(total_min)
-               model_data.append((x[2], x[0]))
+               model_data.append((x[2], x[0]))#data for the model
 
             model_data = np.array(model_data)
             
@@ -169,12 +170,12 @@ class AppFunctions:
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)# get avg battery
 
             #Labels for how many times batt was charged and average life of the battery
-            battery_info.config(text=f"Average batter: ≈{averBatt[0]}h:{averBatt[1]:.0f}m | Battery charged: {batteryCharg} {"times" if batteryCharg > 1 else "time"}")            
+            battery_info.config(text=f"Average battery: ≈{averBatt[0]}h:{averBatt[1]:.0f}m | Battery charged: {batteryCharg} {"times" if batteryCharg > 1 else "time"}")            
             
             errorLabel.config(text="")#clear errorLabel
 
-         except Exception as e:
-            errorLabel.config(text=f"{e}")
+         except ValueError:
+            errorLabel.config(text=f"We don't have any data for {day}, please try later.")
             
       else:
          errorLabel.config(text="Empty inputs!.")
@@ -194,7 +195,10 @@ class AppFunctions:
       my_tree.delete(*my_tree.get_children())
       if month and year:
          try:
-            data = conn.execute(f"SELECT * FROM {month} WHERE year=?;", (int(year),)).fetchall()
+            with sql.connect(databasePath) as conn:
+               cursor = conn.cursor()
+               data = cursor.execute(f"SELECT * FROM {month} WHERE year=?;", (int(year),)).fetchall()
+
             previusDate = ''
 
             for i, x in enumerate(data):
@@ -211,7 +215,7 @@ class AppFunctions:
             
       else:
          errorLabel.config(text="Empty inputs!.")
-
+   
    def prepare_data(self, data) -> np.ndarray: #interval=2 is how many samples will the model accept, because it's trained to work with 2, it only needs 2 samples
       X = []
 
@@ -274,15 +278,13 @@ class AppFunctions:
 
       if gcC:
          gc.collect()
-
+   
    def createGraph(self, x, y, day):
       self.clearGraphs(True)
       global f, ax, canvas, toolbar
 
-      f = plt.Figure(figsize=(16, 6), dpi=75) #NOTE: ADD YEARLY, MONTHY, WEEKLY usage of battery (time), how much times was charged...
-
+      f = plt.Figure(figsize=(16, 6), dpi=75)
       ax = f.add_subplot()
-
 
       for i in range(1, len(y)):
          # Calculate the difference between consecutive y-values
@@ -321,13 +323,12 @@ class AppFunctions:
       ax.set_xlabel("Time")
       ax.set_title(f'Battery data for {day}')
       
-
       # Manually specify the legend entries for red, orange, and green lines
       ax.plot([], [], color='red', linestyle='solid', label='Battery Used >= 6')
       ax.plot([], [], color='orange', linestyle='dashed', label='Battery Used >= 4')
       ax.plot([], [], color='green', linestyle='dotted', label='Battery Used <= 3')
       ax.plot([], [], color='gray', linestyle='solid', label='Predicted battery %')
-
+      
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
       ax.legend(loc='upper right')  #Display the legend in the top-right corner
 
@@ -337,54 +338,200 @@ class AppFunctions:
 
       #Create a new navigation toolbar for zooming and panning
       toolbar = NavigationToolbar2Tk(canvas, graphFrame)
-
-      #Destroy the existing toolbar if it exists
-      if 'toolbar' in locals():
-         print("toolbar deleted")
-         toolbar.grid_forget()
-
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
    
-   def dataAnalyse(self):
-      self.clearGraphs(False)
-      #self.stack.add(self.dataAnalyse)
+   def dataYearly(self):
+      self.clearGraphs(True)
       battery_info.config(text="")
+      errorLabel.config(text="")#clear error label
+
+      getYear = searchYear.get()
+      chargedCounts = []
+      avgChargedCount = 0
 
       chargedCounts = []
-      for month in self.months:
-         data = conn.execute(f"SELECT * FROM {month} WHERE year='{year}';").fetchall()
-         points = [row[0] for row in data]
-         chargedCounts.append(self.batteryCharged(points))
+      months = [] #storing only months that have data
 
-      # Create a line plot
-      f = plt.Figure(figsize=(16, 6), dpi=75)
-      ax = f.add_subplot()
-      ax.bar(self.months, chargedCounts,color='b')
-      ax.set_xlabel('Month')
-      ax.set_ylabel('Charging Count')
-      ax.set_title('Battery Charging Count per Month')
+      try:
+         for month in self.months:
+            with sql.connect(databasePath) as conn:
+               cursor = conn.cursor()
+               data = cursor.execute(f"SELECT batteryPerc FROM {month} WHERE year='{getYear}';").fetchall()
 
-      # Add labels on each data point
-      for month, count in zip(self.months, chargedCounts):
-         ax.annotate(str(count), (month, count), textcoords='offset points', xytext=(0, 5), ha='center', va='bottom')
+            points = [row[0] for row in data]
+            
+            if points:
+               chargedCount = self.batteryCharged(points)
+               months.append(month)
+               chargedCounts.append(chargedCount)
+               avgChargedCount += chargedCount
 
-      ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
 
-      canvas = FigureCanvasTkAgg(f, graphFrame)
-      canvas_widget = canvas.get_tk_widget()
-      canvas_widget.grid(row=0, column=0, sticky="nswe")
+         avgChargedCount /= len(chargedCounts)
 
-      # Create a new navigation toolbar for zooming and panning
-      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+         #Create a line plot
+         f = plt.Figure(figsize=(16, 6), dpi=75)
+         ax = f.add_subplot()
+         
+         ax.set_xlabel('Months')
+         ax.set_ylabel('Charging Counts')
+         ax.set_title(f'Battery Charging Count per Month for {year}')
+         
+         ax.bar(months, chargedCounts, color='b', width=0.4)
+         ax.axhline(y=avgChargedCount, color='orange', linestyle='dashed', label=f'Average charged per month: {avgChargedCount:.2f}')
+         ax.set_ylim(bottom=0)
 
-      # Destroy the existing toolbar if it exists
-      if 'toolbar' in locals():
-         toolbar.grid_forget()
+         #Add labels on each data point
+         for month, count in zip(months, chargedCounts):
+            ax.annotate(str(count), (month, count), textcoords='offset points', xytext=(0, 5), ha='center', va='bottom')
 
-      toolbar.update()
-      toolbar.grid(row=1, column=0, sticky="ew")
+         ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
+         ax.legend()
 
+         canvas = FigureCanvasTkAgg(f, graphFrame)
+         canvas_widget = canvas.get_tk_widget()
+         canvas_widget.grid(row=0, column=0, sticky="nswe")
+
+         #Create a new navigation toolbar for zooming and panning
+         toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+         toolbar.update()
+         toolbar.grid(row=1, column=0, sticky="ew")
+
+      except ZeroDivisionError as e:
+         errorLabel.config(text=f"We probably don't have any data for that year yet, please try again later. Error: {e}")
+   
+   def getTotalUsage(self, data):
+      """Calculates the total usage time (difference between maximum and minimum levels) for each day."""
+      if not data:
+         return 0
+
+      min_level = data[0][0]
+      max_level = min_level
+      total_usage = 0
+
+      for point in data:
+         level = point[0]
+         min_level = min(min_level, level)
+         max_level = max(max_level, level)
+
+         # Only consider full cycles (charge to discharge) for usage calculation
+         if level == min_level or point == data[-1]:
+            total_usage += max_level - min_level
+            min_level = level
+            max_level = level
+
+      return total_usage
+   
+   def dataMonthly(self):
+      self.clearGraphs(True)
+      errorLabel.config(text="")
+      battery_info.config(text="")
+
+      """Creates a line plot showing battery charging activity and calculates averages."""
+      fig, (ax1, ax2) = plt.subplots(figsize=(20, 12), dpi=70, nrows=2)
+      ax1.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
+
+      chargedCounts = []
+      avgChargedCount = 0
+      avgTotalUsage = 0
+      days_seen = set()
+      getMonth = searchMonth.get()
+      getYear = searchYear.get()
+
+      with sql.connect(databasePath) as conn:
+         cursor = conn.cursor()
+         if getMonth and getYear:
+            days = [row[0] for row in cursor.execute(f"SELECT day FROM {getMonth} WHERE year='{getYear}';").fetchall()
+                  if (row[0] not in days_seen) and not days_seen.add(row[0])]
+
+      daily_avg_usage = []  #List to store daily average usage
+      try:
+         for day in days:
+            with sql.connect(databasePath) as conn:
+               cursor = conn.cursor()
+
+               data = cursor.execute(f"SELECT batteryPerc FROM {getMonth} WHERE day='{day}' AND year='{getYear}';").fetchall()
+               points = [row[0] for row in data]
+               chargedCount = self.batteryCharged(points)
+               totalUsage = self.getTotalUsage(data)
+
+            chargedCounts.append(chargedCount)
+            avgChargedCount += chargedCount
+            avgTotalUsage += totalUsage
+
+            if chargedCount == 0:
+               chargedCount=1
+
+            daily_avg_usage.append(totalUsage/chargedCount)
+
+         avgChargedCount /= len(chargedCounts)
+         avgTotalUsage /= len(chargedCounts)
+
+         ax1.set_ylabel("Charged count")
+         ax1.set_xticks(range(len(days)))
+         ax1.set_xticklabels(days, rotation=35)
+         ax1.set_xlabel("Days")
+         ax1.set_title(f'Battery count for {month}')
+
+         #Label placeholders
+         avgChargedLabel = ax1.plot([], [], color='orange', linestyle='dashed', label=f'AVG charged: {avgChargedCount:.2f}')
+         avgUsageLabel = ax2.plot([], [], color='green', linestyle='solid', label=f'AVG total usage: {avgTotalUsage:.2f}')
+
+         ax1.plot(days, chargedCounts, marker='o', linestyle='-', color='b')
+         ax1.axhline(y=avgChargedCount, color='orange', linestyle='dashed')  # Average line for charged count
+         ax2.axhline(y=avgTotalUsage, color='green', linestyle='solid')  # Average line for total usage
+
+         ax1.plot(days, chargedCounts, marker='o', linestyle='-', color='b')
+
+         #Update label values at the end (avoid flickering)
+         avgUsageLabel[0].set_ydata([avgTotalUsage] * len(avgUsageLabel[0].get_xdata()))
+         avgChargedLabel[0].set_ydata([avgChargedCount] * len(avgChargedLabel[0].get_xdata()))
+
+         y_offset = 0.04
+
+         #Iterate through each day and count, positioning the text separately
+         for day, count in zip(days, chargedCounts):
+            #Determine the text position considering the offset
+            x_pos = days.index(day)  #Get the x-position based on the day's index
+            y_pos = count + y_offset  #Add the offset to the count
+
+            #Add the text to the plot
+            ax1.text(x_pos, y_pos, str(count), ha='center', va='bottom',
+               color="black", weight="normal")
+            
+         ax1.legend()  #Display updated legend now
+
+         ax2.set_ylabel("Average usage (minutes)")
+         ax2.set_xlabel("Days")
+         ax2.set_xticks(range(len(days)))
+         ax2.set_xticklabels(days, rotation=35)
+         ax2.set_title(f'Average battery usage per day for {month}')
+         ax2.bar(days, daily_avg_usage, color='g', label='Avg usage')
+
+         ax2.legend()
+
+         plt.subplots_adjust(hspace=0.5)
+
+         canvas1 = FigureCanvasTkAgg(fig, graphFrame)
+         canvas_widget1 = canvas1.get_tk_widget()
+         canvas_widget1.grid(row=0, column=0, sticky="nswe")
+
+         #Create a new navigation toolbar for zooming and panning
+         toolbar = NavigationToolbar2Tk(canvas1, graphFrame)
+
+         #Destroy the existing toolbar if it exists
+         if 'toolbar' in globals():
+            toolbar.grid_forget()
+
+         toolbar.update()
+         toolbar.grid(row=1, column=0, sticky="ew")
+   
+      except Exception as e:
+         errorLabel.config(text=f'We don\'t have any data for that month or year yet, please try later. {e}')  
+
+      plt.close(fig) #Close the figure to release resources
+ 
 # Navigation class
 class NavigationStack(AppFunctions):
    def __init__(self):
@@ -445,7 +592,7 @@ class AppUI:
       self.main()
 
    def main(self):
-      global errorLabel, graphFrame, battery_info, my_tree, dataFrame, nextB, backB, themeButton
+      global errorLabel, menuBar, graphFrame, battery_info, my_tree, dataFrame, nextB, backB, themeButton, yearlyButton, monthlyButton, searchMonth, searchYear
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
       sideFrame.pack(side=LEFT, fill='y')
@@ -472,9 +619,7 @@ class AppUI:
       button.grid(row=1, column=0, pady=3, ipadx=15)
       button.configure(activebackground='white')
 
-
       ###########################################Treeview#########################################################
-
       tree_scroll = Scrollbar(dataFrame)
       tree_scroll.pack(side=RIGHT, fill=Y)
 
@@ -503,7 +648,7 @@ class AppUI:
       my_tree.heading("Year", text="Year", anchor=CENTER)
 
       ####################################################################################################
-      #side graph and menu frame
+      #menues frame
       menuBar = Frame(mainFrame, border=1, height=100, bg=f"{self.colors.primaryC}")
       menuBar.pack(fill=BOTH, expand=True)
 
@@ -515,13 +660,16 @@ class AppUI:
       homeB = Button(menuBar, text="Home", command=self.func.homeButton, bg=f'{self.colors.buttonColor}', fg="white", cursor="hand2")
       homeB.pack(side="left", padx=5, pady=2)
 
-      anlData = Button(menuBar, text="Analyse data", command=self.func.dataAnalyse, bg=f'{self.colors.buttonColor}', fg="white", cursor="hand2")
-      anlData.pack(side="left", padx=5, pady=2)
+      yearlyButton = Button(menuBar, text="Yearly data", command=lambda: self.stack.add(self.func.dataYearly), bg=f'{self.colors.buttonColorD}', fg="white", cursor="hand2")
+      monthlyButton = Button(menuBar, text="Monthly data", command=lambda: self.stack.add(self.func.dataMonthly), bg=f'{self.colors.buttonColorD}', fg="white", cursor="hand2")
       
       themeButton = Button(menuBar, text=f"Theme: {"light"}", bg=f'{self.colors.buttonColor}', fg='white', cursor="hand2", command=self.func.switchTheme)
       themeButton.pack(side="right", padx=5, pady=2)
-      ###BUTTONS###
 
+      yearlyButton.pack(side="left", padx=5, pady=2)
+      monthlyButton.pack(side="left", padx=5, pady=2)
+      
+      ###BUTTONS###
       graphFrame = Frame(mainFrame, relief='sunken', border=3, height=self.appHeight, bg=f"{self.colors.primaryC}", width=900)
       graphFrame.pack(fill='both', expand=True)
 
@@ -554,7 +702,6 @@ class AppUI:
    
       #Create graph when the app is started
       self.stack.add(self.func.getData, month, day, year)
-
 
 AppUI()
 window.bind('<Button>', lambda event: event.widget.focus_set())
