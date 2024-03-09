@@ -5,6 +5,6 @@
 </p>
 <hr>
 <h3 align="center">What you need to install</h3>
-<p>The app to work properly firstly you need to write this: <strong>pip3 install matplotlib numpy scikit-learn tkinter</strong></p>
+<p>The app to work properly firstly you need to write this: <strong>pip3 install matplotlib numpy joblib tkinter</strong></p>
 
 <img src="appImg/appImage.png" alt="App Image" align="center">
