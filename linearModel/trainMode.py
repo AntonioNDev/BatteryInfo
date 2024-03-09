@@ -13,7 +13,7 @@ X = []  # Features (battery percentage differences)
 Y = []  # Target (battery percentage change for future time interval)
 
 # Define the time intervals for prediction (e.g., 30 minutes)
-prediction_interval = 2
+prediction_interval = 3
 months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 years = [2023, 2024]
 

@@ -17,6 +17,10 @@ day = now.strftime("%a %d")
 month = now.strftime("%b")
 year = now.strftime("%Y")
 
+
+#NOTE: THE APP is in pre-built so the paths are written like this for now, later 
+#there will be another app for instalation and cofiguration
+
 window = Tk()
 window.title("Battery Tracker")
 window.iconbitmap("logo/logoNBW.ico")
@@ -53,10 +57,11 @@ class colorPalette:
       ...
 
 # AppFunctions with all methods for the app
-class AppFunctions:
+class AppFunctions: #BUG: make one function for creating graph so there isn't any duplicate codes
    def __init__(self, navigationStack, colorPalette):
       self.stack = navigationStack
       self.colors = colorPalette
+      self.searchON = False
       self.months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
    def switchTheme(self):#TODO: make switch themes option
@@ -75,6 +80,9 @@ class AppFunctions:
    def backButton(self): # returns to the previus graph
       self.stack.pop_call(self)
    
+   def searchButton(self):
+      sideFrame.pack(side=LEFT, fill='y')
+
    def homeButton(self):
       self.stack.add(self.getData, month, day, year)
    
@@ -216,7 +224,7 @@ class AppFunctions:
       else:
          errorLabel.config(text="Empty inputs!.")
    
-   def prepare_data(self, data) -> np.ndarray: #interval=2 is how many samples will the model accept, because it's trained to work with 2, it only needs 2 samples
+   def prepare_data(self, data) -> np.ndarray: #prepares the data for the liner regression model
       X = []
 
       for i in range(0, len(data) - 1):
@@ -227,7 +235,7 @@ class AppFunctions:
 
       #Convert lists to numpy arrays
       X = np.array(X)
-      sample_input = X[-2:]
+      sample_input = X[-3:]
 
       return sample_input
    
@@ -353,6 +361,9 @@ class AppFunctions:
       chargedCounts = []
       months = [] #storing only months that have data
 
+      if not getYear:
+         getYear = year #if getYear is nullPtr then get the current year.
+
       try:
          for month in self.months:
             with sql.connect(databasePath) as conn:
@@ -376,7 +387,7 @@ class AppFunctions:
          
          ax.set_xlabel('Months')
          ax.set_ylabel('Charging Counts')
-         ax.set_title(f'Battery Charging Count per Month for {year}')
+         ax.set_title(f'Battery Charging Count per Month for {getYear}')
          
          ax.bar(months, chargedCounts, color='b', width=0.4)
          ax.axhline(y=avgChargedCount, color='orange', linestyle='dashed', label=f'Average charged per month: {avgChargedCount:.2f}')
@@ -439,6 +450,10 @@ class AppFunctions:
       getMonth = searchMonth.get()
       getYear = searchYear.get()
 
+      if not getYear and not getMonth:
+         getYear = year #if getYear and getMonth are nullPtrs then get the current year and month.
+         getMonth = month
+
       with sql.connect(databasePath) as conn:
          cursor = conn.cursor()
          if getMonth and getYear:
@@ -472,7 +487,7 @@ class AppFunctions:
          ax1.set_xticks(range(len(days)))
          ax1.set_xticklabels(days, rotation=35)
          ax1.set_xlabel("Days")
-         ax1.set_title(f'Battery count for {month}')
+         ax1.set_title(f'Battery count for {getMonth}')
 
          #Label placeholders
          avgChargedLabel = ax1.plot([], [], color='orange', linestyle='dashed', label=f'AVG charged: {avgChargedCount:.2f}')
@@ -506,7 +521,7 @@ class AppFunctions:
          ax2.set_xlabel("Days")
          ax2.set_xticks(range(len(days)))
          ax2.set_xticklabels(days, rotation=35)
-         ax2.set_title(f'Average battery usage per day for {month}')
+         ax2.set_title(f'Average battery usage per day for {getMonth}')
          ax2.bar(days, daily_avg_usage, color='g', label='Avg usage')
 
          ax2.legend()
@@ -592,10 +607,9 @@ class AppUI:
       self.main()
 
    def main(self):
-      global errorLabel, menuBar, graphFrame, battery_info, my_tree, dataFrame, nextB, backB, themeButton, yearlyButton, monthlyButton, searchMonth, searchYear
+      global errorLabel, menuBar, graphFrame, battery_info, my_tree, dataFrame, nextB, backB, themeButton, yearlyButton, monthlyButton, searchMonth, searchYear, sideFrame
 
       sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
-      sideFrame.pack(side=LEFT, fill='y')
 
       searchFrame = LabelFrame(sideFrame, height=130, width=350, bg=f"{self.colors.primaryC}", text='Month & Year')
       searchFrame.grid(row=0, column=0, sticky='n')
@@ -653,6 +667,9 @@ class AppUI:
       menuBar.pack(fill=BOTH, expand=True)
 
       ###BUTTONS###
+      searchB = Button(menuBar, text="Search", command=self.func.searchButton, bg=f'{self.colors.buttonColor}', fg="white", cursor="hand2")
+      searchB.pack(side="left", padx=5, pady=2)
+
       backB = Button(menuBar, text="Back", state="disabled", command=self.func.backButton, bg=f'{self.colors.disabledButton}', fg="white", cursor="hand2")
       backB.configure(disabledforeground="white")
       backB.pack(side="left", padx=5, pady=2)
