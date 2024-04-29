@@ -57,14 +57,14 @@ class colorPalette:
       ...
 
 # AppFunctions with all methods for the app
-class AppFunctions: #BUG: make one function for creating graph so there isn't any duplicate codes
+class AppFunctions: #TODO: make one function for creating graph so there isn't any duplicate codes
    def __init__(self, navigationStack, colorPalette):
       self.stack = navigationStack
       self.colors = colorPalette
       self.searchON = False
       self.months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-   def switchTheme(self):#TODO: make switch themes option
+   def switchTheme(self): #TODO: make switch themes option
       if self.colors.mode == "light":
          self.colors.mode = "dark"
 
@@ -77,7 +77,7 @@ class AppFunctions: #BUG: make one function for creating graph so there isn't an
          themeButton.config(text="Theme: light")
          self.colors.lightBG()
 
-   def backButton(self): # returns to the previus graph
+   def backButton(self): #returns to the previus graph
       self.stack.pop_call(self)
    
    def searchButton(self):
@@ -235,7 +235,7 @@ class AppFunctions: #BUG: make one function for creating graph so there isn't an
 
       #Convert lists to numpy arrays
       X = np.array(X)
-      sample_input = X[-3:]
+      sample_input = X[-2:]
 
       return sample_input
    
