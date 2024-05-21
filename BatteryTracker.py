@@ -27,7 +27,7 @@ window.iconbitmap("logo/logoNBW.ico")
 databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 
 # animations is not currently used but it will be future for menu sliding and other animations
-class animations:
+class animations: 
    def __init__(self) -> None:
       pass
 
@@ -123,6 +123,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
 
       resultInMinutes = sum(calc) / len(calc)
       hours, minutes = self.minutesToHours(resultInMinutes)
+      
 
       return [hours, minutes]
    
@@ -155,17 +156,21 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
                cursor = conn.cursor()
                data = cursor.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
 
-            for i, x in enumerate(data):
+            for i in range(len(data)-1):
+               x = data[i]
                Ypoints = np.append(Ypoints, [x[0]])
 
                total_min = x[2]
                hours, minutes = self.minutesToHours(total_min)
 
                Xpoints = np.append(Xpoints, [f'{hours:02d}:{minutes:02d}']) 
+               timeM = abs(data[i][2] - data[i+1][2])
+                              
+               if timeM == 15:
+                  yDataFAvg.append(x[0])
+                  xDataFAvg.append(total_min)
 
-               yDataFAvg.append(x[0])
-               xDataFAvg.append(total_min)
-               model_data.append((x[2], x[0]))#data for the model
+               model_data.append((x[2], x[0])) #data for the model
 
             model_data = np.array(model_data)
             
@@ -262,9 +267,9 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
             # Extend x to include the position for "later" and set the last label
             x = np.append(x, len(x))
             x_labels = list(x)  #Convert x to a list to modify it
-            x_labels[-1] = 'later'  #Set the last label to 'later'
+            x_labels[-1] = 'Predicted BP'  #Set the last label to 'later'
             ax.set_xticks(x)
-            ax.set_xticklabels(x_labels)
+            ax.set_xticklabels(x_labels, rotation=10)
 
             ax.scatter([len(x) - 1], [predicted_battery], color='black', s=15, marker='o', linewidth=2, zorder=5)
             ax.annotate(f'{predicted_battery}%', (len(x) - 1, predicted_battery), textcoords='offset points', xytext=(-15, -5), ha='center', fontsize=11, color='black')
@@ -335,7 +340,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       ax.plot([], [], color='red', linestyle='solid', label='Battery Used >= 6')
       ax.plot([], [], color='orange', linestyle='dashed', label='Battery Used >= 4')
       ax.plot([], [], color='green', linestyle='dotted', label='Battery Used <= 3')
-      ax.plot([], [], color='gray', linestyle='solid', label='Predicted battery %')
+      ax.plot([], [], color='gray', linestyle='solid', label='Predicted battery perc.')
       
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
       ax.legend(loc='upper right')  #Display the legend in the top-right corner
@@ -470,7 +475,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
                points = [row[0] for row in data]
                chargedCount = self.batteryCharged(points)
                totalUsage = self.getTotalUsage(data)
-
+            
             chargedCounts.append(chargedCount)
             avgChargedCount += chargedCount
             avgTotalUsage += totalUsage
@@ -515,7 +520,6 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
             ax1.text(x_pos, y_pos, str(count), ha='center', va='bottom',
                color="black", weight="normal")
             
-         ax1.legend()  #Display updated legend now
 
          ax2.set_ylabel("Average usage (minutes)")
          ax2.set_xlabel("Days")
@@ -524,6 +528,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
          ax2.set_title(f'Average battery usage per day for {getMonth}')
          ax2.bar(days, daily_avg_usage, color='g', label='Avg usage')
 
+         ax1.legend()  #Display updated legends now
          ax2.legend()
 
          plt.subplots_adjust(hspace=0.5)
@@ -548,7 +553,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       plt.close(fig) #Close the figure to release resources
  
 # Navigation class
-class NavigationStack(AppFunctions):
+class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
    def __init__(self):
       self.stack = []
       self.colors = colorPalette()
@@ -720,6 +725,7 @@ class AppUI:
       #Create graph when the app is started
       self.stack.add(self.func.getData, month, day, year)
 
-AppUI()
-window.bind('<Button>', lambda event: event.widget.focus_set())
-window.mainloop()
+if __name__ == "__main__":
+   AppUI()
+   window.bind('<Button>', lambda event: event.widget.focus_set())
+   window.mainloop()
