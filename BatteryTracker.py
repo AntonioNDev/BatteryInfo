@@ -628,11 +628,13 @@ class AppUI:
       #######################################################################################################################
       #records frame inputs and labels
       
-      searchMonth = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
-      searchMonth.grid(row=0, column=0, ipady=5, padx=10, pady=10)
+      searchMonth = ttk.Combobox(searchFrame, font=('Arial', 9), justify=CENTER)
+      searchMonth['values'] = self.func.months
+      searchMonth.grid(row=0, column=0, ipady=5, padx=5, pady=10)
       
-      searchYear = Entry(searchFrame, highlightthickness=1, border=2, font=('Arial', 9), justify=CENTER)
-      searchYear.grid(row=0, column=2, ipady=5, padx=10, pady=10)
+      searchYear = ttk.Combobox(searchFrame, font=('Arial', 9), justify=CENTER)
+      searchYear['values'] = [2023, 2024]
+      searchYear.grid(row=0, column=2, ipady=5, padx=5, pady=10)
 
       button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', fg='white', bg=f'{self.colors.buttonColor}', cursor="hand2", command=lambda:self.func.searchQuery(searchMonth.get(), searchYear.get())) #self.func.chargedCountsGraph('yearly')
       button.grid(row=1, column=0, pady=3, ipadx=15)
@@ -728,4 +730,5 @@ class AppUI:
 if __name__ == "__main__":
    AppUI()
    window.bind('<Button>', lambda event: event.widget.focus_set())
+   print(threading.active_count())
    window.mainloop()
