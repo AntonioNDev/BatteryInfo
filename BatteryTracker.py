@@ -1,13 +1,16 @@
 from tkinter import *
 from tkinter import ttk
+import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-import sqlite3 as sql
-import datetime
-import matplotlib.pyplot as plt
-import gc
-import numpy as np
-import threading
+
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import sqlite3 as sql
+
+import datetime
+import threading
+import gc
 
 matplotlib.use('TkAgg')
 
@@ -21,67 +24,44 @@ year = now.strftime("%Y")
 #NOTE: THE APP is in pre-built so the paths are written like this for now, later 
 #there will be another app for instalation and cofiguration
 
-window = Tk()
+window = ctk.CTk()
 window.title("Battery Tracker")
 window.iconbitmap("logo/logoNBW.ico")
 databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
-
-# animations is not currently used but it will be future for menu sliding and other animations
-class animations: 
-   def __init__(self) -> None:
-      pass
 
 # colorPallete is for the colors of the app
 class colorPalette:
    def __init__(self) -> None:
       #default colors
-      self.mode = "light"
-      self.primaryC = '#eff2ef'
-      self.secondaryC = '#C9ADA7'
-      self.accentC = '#4f646f'
-      self.buttonColor = '#778da9'
-      self.buttonColorD = '#84a98c'
-      self.disabledButton = "#0b525b"
-   
-   def lightBG(self):
-      #colors for light mode -> default colors
-      self.primaryC = '#eff2ef'
-      self.secondaryC = '#C9ADA7'
-      self.accentC = '#4f646f'
-      self.buttonColor = '#778da9'
-      self.buttonColorD = '#84a98c'
-      self.disabledButton = "#0b525b"
-   
-   def darkBG(self):
-      #colors for dark mode
-      ...
+      self.backgroundMainC = '#f6f9f9'
+      self.framesC = '#778DA9'
+
+      self.slideSearchC = '#30415F'
+      self.slideDataFC = '#334E71'
+
+      self.buttonColorActive = '#92B3DF'
+      self.buttonColorDisabled = '#516D91'
+
+      self.selectedTab = ['#a4b3c8', '#f8f7ff']
+      self.unselectedTab = ['#72839a', '#f8f7ff']
+
+      self.textC = "#f8f7ff"
+
+      self.errorColor = "#e56b6f"
+      self.hoverColor = "#5B9CF0"
 
 # AppFunctions with all methods for the app
 class AppFunctions: #TODO: make one function for creating graph so there isn't any duplicate codes
    def __init__(self, navigationStack, colorPalette):
       self.stack = navigationStack
       self.colors = colorPalette
-      self.searchON = False
+      self.currentMonth = ''
+      self.currentYear = None
+
       self.months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-   def switchTheme(self): #TODO: make switch themes option
-      if self.colors.mode == "light":
-         self.colors.mode = "dark"
-
-         themeButton.config(text="Theme: dark")
-         self.colors.darkBG()
-
-      elif self.colors.mode == "dark":
-         self.colors.mode = "light"
-
-         themeButton.config(text="Theme: light")
-         self.colors.lightBG()
 
    def backButton(self): #returns to the previus graph
       self.stack.pop_call(self)
-   
-   def searchButton(self):
-      sideFrame.pack(side=LEFT, fill='y')
 
    def homeButton(self):
       self.stack.add(self.getData, month, day, year)
@@ -177,21 +157,22 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
             self.createGraph(Xpoints, Ypoints, day) #calls the function to create the graph
 
             if now.strftime("%a %d") == day and len(Xpoints) >= 3: #It works only on the current day, when there are more than 3 xpoints
-               threading.Thread(target=self.linear_model, args=(model_data, Xpoints, Ypoints), daemon=True).start()#linear function thread so it doesn't slow down the main thread              
+               threading.Thread(target=self.linear_model, args=(model_data, Xpoints, Ypoints), daemon=True).start()#linear function thread so it doesn't slow down the main thread                 
 
             batteryCharg = self.batteryCharged(Ypoints)#get battery charged count
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)# get avg battery
 
             #Labels for how many times batt was charged and average life of the battery
-            battery_info.config(text=f"Average battery: ≈{averBatt[0]}h:{averBatt[1]:.0f}m | Battery charged: {batteryCharg} {"times" if batteryCharg > 1 else "time"}")            
+            battery_info.configure(text=f"AVG.battery: ≈{averBatt[0]}h:{averBatt[1]:.0f}m | charged: {batteryCharg} {"times" if batteryCharg > 1 else "time"}")            
             
-            errorLabel.config(text="")#clear errorLabel
+            errorLabel.configure(text="")#clear errorLabel
 
          except ValueError:
-            errorLabel.config(text=f"We don't have any data for {day}, please try later.")
+            errorLabel.configure(text=f"We don't have any data for {day}, please try later.")
+            battery_info.configure(text="")
             
       else:
-         errorLabel.config(text="Empty inputs!.")
+         errorLabel.configure(text="Empty inputs!.")
    
    def helperFunc(self, month):
       try:
@@ -202,7 +183,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
 
          self.stack.add(self.getData, month, day, year)
       except Exception as e:
-         errorLabel.config(text=f"{e}")
+         errorLabel.configure(text=f"{e}")
    
    def searchQuery(self, month, year):
       my_tree.delete(*my_tree.get_children())
@@ -210,24 +191,23 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
          try:
             with sql.connect(databasePath) as conn:
                cursor = conn.cursor()
-               data = cursor.execute(f"SELECT * FROM {month} WHERE year=?;", (int(year),)).fetchall()
+               data = cursor.execute(f"SELECT * FROM {month} WHERE year=?;", (int(year),)).fetchall() #BUG: FIX SO THE QUERY ONLY TAKES THE DAY AND THE YEAR, NOT EVERYTHING
 
             previusDate = ''
 
             for i, x in enumerate(data):
-               if(x[1] != previusDate):
+               if(x[1] != previusDate): #BUG: here in the text... fix it
                   my_tree.insert(parent='', index='end', text='', values=(x[1], x[3]))
 
                previusDate = x[1]
 
-            errorLabel.config(text="")
-            dataFrame.configure(text=f'Data for: {month}')
+            errorLabel.configure(text="")
 
          except Exception as e:
-            errorLabel.config(text=f"{e}")
+            errorLabel.configure(text=f"{e}")
             
       else:
-         errorLabel.config(text="Empty inputs!.")
+         errorLabel.configure(text="Empty inputs!.")
    
    def prepare_data(self, data) -> np.ndarray: #prepares the data for the liner regression model
       X = []
@@ -292,7 +272,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       if gcC:
          gc.collect()
    
-   def createGraph(self, x, y, day):
+   def createGraph(self, x, y, day): 
       self.clearGraphs(True)
       global f, ax, canvas, toolbar
 
@@ -345,19 +325,19 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
       ax.legend(loc='upper right')  #Display the legend in the top-right corner
 
-      canvas = FigureCanvasTkAgg(f, graphFrame)
+      canvas = FigureCanvasTkAgg(f, frame1_today)
       canvas_widget = canvas.get_tk_widget()
       canvas_widget.grid(row=0, column=0, sticky="nswe")
 
       #Create a new navigation toolbar for zooming and panning
-      toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+      toolbar = NavigationToolbar2Tk(canvas, frame1_today, pack_toolbar=False)
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
-   
+
    def dataYearly(self):
       self.clearGraphs(True)
-      battery_info.config(text="")
-      errorLabel.config(text="")#clear error label
+      battery_info.configure(text="")
+      errorLabel.configure(text="")#clear error label
 
       getYear = searchYear.get()
       chargedCounts = []
@@ -405,17 +385,17 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
          ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
          ax.legend()
 
-         canvas = FigureCanvasTkAgg(f, graphFrame)
+         canvas = FigureCanvasTkAgg(f, frame3_yearly)
          canvas_widget = canvas.get_tk_widget()
          canvas_widget.grid(row=0, column=0, sticky="nswe")
 
          #Create a new navigation toolbar for zooming and panning
-         toolbar = NavigationToolbar2Tk(canvas, graphFrame)
+         toolbar = NavigationToolbar2Tk(canvas, frame3_yearly, pack_toolbar=False)
          toolbar.update()
          toolbar.grid(row=1, column=0, sticky="ew")
 
       except ZeroDivisionError as e:
-         errorLabel.config(text=f"We probably don't have any data for that year yet, please try again later. Error: {e}")
+         errorLabel.configure(text=f"We probably don't have any data for that year yet, please try again later. Error: {e}")
    
    def getTotalUsage(self, data):
       """Calculates the total usage time (difference between maximum and minimum levels) for each day."""
@@ -441,8 +421,8 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
    
    def dataMonthly(self):
       self.clearGraphs(True)
-      errorLabel.config(text="")
-      battery_info.config(text="")
+      errorLabel.configure(text="")
+      battery_info.configure(text="")
 
       """Creates a line plot showing battery charging activity and calculates averages."""
       fig, (ax1, ax2) = plt.subplots(figsize=(20, 12), dpi=70, nrows=2)
@@ -533,12 +513,12 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
 
          plt.subplots_adjust(hspace=0.5)
 
-         canvas1 = FigureCanvasTkAgg(fig, graphFrame)
+         canvas1 = FigureCanvasTkAgg(fig, frame2_monthly)
          canvas_widget1 = canvas1.get_tk_widget()
          canvas_widget1.grid(row=0, column=0, sticky="nswe")
 
          #Create a new navigation toolbar for zooming and panning
-         toolbar = NavigationToolbar2Tk(canvas1, graphFrame)
+         toolbar = NavigationToolbar2Tk(canvas1, frame2_monthly, pack_toolbar=False)
 
          #Destroy the existing toolbar if it exists
          if 'toolbar' in globals():
@@ -548,7 +528,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
          toolbar.grid(row=1, column=0, sticky="ew")
    
       except Exception as e:
-         errorLabel.config(text=f'We don\'t have any data for that month or year yet, please try later. {e}')  
+         errorLabel.configure(text=f'We don\'t have any data for that month or year yet, please try later. {e}')  
 
       plt.close(fig) #Close the figure to release resources
  
@@ -565,7 +545,7 @@ class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
          self.stack.append((function, args, kwargs))
 
       if(len(self.stack) >= 2): # if the length of the stack is greater than 1 the button BACK is active
-         backB.config(state='active', bg=f'{self.colors.buttonColor}')
+         backward_button.configure(state='active', fg_color=f"{self.colors.buttonColorActive}")
 
       result = function(*args, **kwargs)
       self.current = (function, args, kwargs)
@@ -575,7 +555,7 @@ class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
    #call the last called function and pop it from the stack
    def pop_call(self, instance):
       if len(self.stack) <= 1: # if the stack doesn't have more than 1 item, then the BACK button should be disabled
-         backB.config(state='disabled', bg=f'{self.colors.disabledButton}')
+         backward_button.configure(state='disabled', fg_color=f"{self.colors.buttonColorDisabled}")
 
       if not self.is_empty():
          if self.current == self.stack[-1] and len(self.stack) > 1: # It checks if they are equal if yes then it pops the last item
@@ -594,6 +574,117 @@ class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
    def is_empty(self) -> bool:
       return len(self.stack) == 0
 
+# animated slied panel
+class SlidePanel(ctk.CTkFrame):
+   def __init__(self, parent, start_pos, end_pos, months, functions):
+      super().__init__(master = parent, corner_radius=5, fg_color='#415A77', border_width=2, border_color='#1D3049')
+
+      self.years = ["2023", "2024"]
+
+      self.start_pos = start_pos
+      self.end_pos = end_pos
+      self.width = abs(start_pos - end_pos) - 0.05
+
+      self.pos = self.start_pos #-0.3
+      self.in_start_pos = True
+
+      #layout
+      self.colors = colorPalette()
+      self.months = months
+      self.func = functions
+      self.place(relx = self.start_pos, rely = 0.09, relwidth = self.width, relheight = 0.9)
+
+   def animate(self):
+      if not self.in_start_pos:
+         self.animate_forward()
+      else:
+         self.animate_backwards()
+   
+   def animate_forward(self):
+      if self.pos > self.start_pos:
+         self.pos -= 0.055
+         self.place(relx = self.pos, rely = 0.09, relwidth = self.width, relheight = 0.9)
+         self.after(25, self.animate_forward)
+      else:
+         self.in_start_pos = True
+
+   def animate_backwards(self):
+      if self.pos < self.end_pos:
+         self.pos += 0.055
+         self.place(relx = self.pos, rely = 0.09, relwidth = self.width, relheight = 0.9)
+         self.after(25, self.animate_backwards)
+      else:
+         self.in_start_pos = False
+
+   # layout for the side frame (treeview and other components)
+   def layout(self):
+      global my_tree, dataFrame, searchYear, searchMonth
+
+      # Make sideFrame responsive
+      sideFrame.grid_rowconfigure(0, weight=0)  # Search frame row doesn't expand
+      sideFrame.grid_rowconfigure(1, weight=1)  # Data frame row expands
+      sideFrame.grid_columnconfigure(0, weight=1)  # Make first column of sideFrame expandable
+
+      #Search Frame
+      searchFrame = ctk.CTkFrame(sideFrame, height=130, width=350, fg_color=f'{self.colors.slideSearchC}')
+      searchFrame.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)  # Expand the frame to fill available space
+      searchFrame.grid_propagate(False)  # Prevent the frame from resizing based on its children
+
+      #Data Frame
+      dataFrame = ctk.CTkFrame(sideFrame, height=550, width=300)
+      dataFrame.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)  # Expand the frame to fill available space
+      dataFrame.grid_propagate(False)  # Prevent the frame from resizing based on its children
+      dataFrame.grid_rowconfigure(0, weight=1)  # Make the Treeview inside dataFrame expand
+      dataFrame.grid_columnconfigure(0, weight=1)  # Expand Treeview horizontally in dataFrame
+
+
+      #Search Frame Components
+      searchMonth = ctk.CTkComboBox(searchFrame, font=('Arial', 12), justify=CENTER, values=self.months, corner_radius=10)
+      searchMonth.grid(row=0, column=0, ipady=5, padx=5, pady=10, sticky='ew')
+      searchMonth.set(month)
+
+      searchYear = ctk.CTkComboBox(searchFrame, font=('Arial', 12), justify=CENTER, values=self.years, corner_radius=10)
+      searchYear.grid(row=0, column=1, ipady=5, padx=5, pady=10, sticky='ew')
+      searchYear.set(year)
+
+      button = ctk.CTkButton(searchFrame, text='Search', font=('Arial', 14), corner_radius=6, fg_color=f'{self.colors.buttonColorActive}',
+                             text_color=f'{self.colors.textC}', hover_color=f'{self.colors.hoverColor}', command=lambda: self.func.searchQuery(searchMonth.get(), searchYear.get()))
+      button.grid(row=1, column=0, columnspan=2, pady=2, padx=10, sticky='ns') 
+
+      # Make the columns in searchFrame responsive
+      searchFrame.grid_columnconfigure(0, weight=1)
+      searchFrame.grid_columnconfigure(1, weight=1)
+
+      # Treeview with Scrollbar
+      tree_scroll = ctk.CTkScrollbar(dataFrame)
+      tree_scroll.grid(row=0, column=1, sticky='ns')  # Attach to the right of the Treeview
+
+      style = ttk.Style()
+      style.theme_use("clam")
+      style.configure("Treeview",
+         background=f"{self.colors.slideDataFC}",
+         foreground=f"{self.colors.textC}",
+         rowheight=35,
+         font=('Arial', 12), 
+         fieldbackground=f"{self.colors.slideDataFC}"
+      )
+
+      my_tree = ttk.Treeview(dataFrame, yscrollcommand=tree_scroll.set)
+      my_tree.grid(row=0, column=0, sticky='nsew')  # Make the Treeview fill and expand
+
+      tree_scroll.configure(command=my_tree.yview)
+
+      # Define columns for the Treeview
+      my_tree['columns'] = ("Day", "Year")
+      my_tree.column("#0", width=0, stretch=NO)
+      my_tree.column("Day", anchor=CENTER, width=100)
+      my_tree.column("Year", anchor=CENTER, width=120)
+
+      my_tree.heading("#0", text='', anchor=W)
+      my_tree.heading("Day", text="Day", anchor=CENTER)
+      my_tree.heading("Year", text="Year", anchor=CENTER)
+      style.configure("Treeview.Heading", font=('Arial', 13))
+
 # UI class
 class AppUI: 
    def __init__(self):
@@ -609,123 +700,123 @@ class AppUI:
       self.stack = NavigationStack()
       self.colors = colorPalette()
       self.func = AppFunctions(self.stack, self.colors)
+
       self.main()
 
-   def main(self):
-      global errorLabel, menuBar, graphFrame, battery_info, my_tree, dataFrame, nextB, backB, themeButton, yearlyButton, monthlyButton, searchMonth, searchYear, sideFrame
+   def data_frame(self):
+      global errorLabel, frame1_today, frame2_monthly, frame3_yearly, battery_info
 
-      sideFrame = Frame(window, relief='sunken', height=self.appHeight, width=350, border=3)
+      # Create ttk.Notebook with 2 frames inside
+      notebook = ttk.Notebook(mainFrame)
+      notebook.grid(row=1, column=0, padx=10, pady=5, sticky='nsew', ipadx=5, ipady=5)  # Expand to fill x and y axis
+      mainFrame.grid_rowconfigure(1, weight=5)  # 80% of space for the notebook
+      mainFrame.grid_columnconfigure(0, weight=1)  # Make notebook fill width
 
-      searchFrame = LabelFrame(sideFrame, height=130, width=350, bg=f"{self.colors.primaryC}", text='Month & Year')
-      searchFrame.grid(row=0, column=0, sticky='n')
+      # Create the frames to add to the notebook
+      frame1_today = ttk.Frame(notebook)
+      frame2_monthly = ttk.Frame(notebook)
+      frame3_yearly = ttk.Frame(notebook)
 
-      dataFrame = LabelFrame(sideFrame, height=600, width=350, bg=f'{self.colors.primaryC}', relief='sunken', border=2, text=f'')
-      dataFrame.grid(row=1, column=0)
-      
-      mainFrame = Frame(window, relief='sunken')
-      mainFrame.pack(side=RIGHT, fill='both', expand=True)
+      # Add frames to the notebook     
+      notebook.add(frame1_today, text="Home")
+      notebook.add(frame2_monthly, text="Monthly data graph")
+      notebook.add(frame3_yearly, text="Yearly data graph")
 
-      #######################################################################################################################
-      #records frame inputs and labels
-      
-      searchMonth = ttk.Combobox(searchFrame, font=('Arial', 9), justify=CENTER)
-      searchMonth['values'] = self.func.months
-      searchMonth.grid(row=0, column=0, ipady=5, padx=5, pady=10)
-      
-      searchYear = ttk.Combobox(searchFrame, font=('Arial', 9), justify=CENTER)
-      searchYear['values'] = [2023, 2024]
-      searchYear.grid(row=0, column=2, ipady=5, padx=5, pady=10)
+      notebook.select(frame1_today)
 
-      button = Button(searchFrame, border=2, text='Search', font=('Arial', 11), relief='groove', fg='white', bg=f'{self.colors.buttonColor}', cursor="hand2", command=lambda:self.func.searchQuery(searchMonth.get(), searchYear.get())) #self.func.chargedCountsGraph('yearly')
-      button.grid(row=1, column=0, pady=3, ipadx=15)
-      button.configure(activebackground='white')
+      #Error label will display the bugs/exceptions
+      errorLabel = ctk.CTkLabel(mainFrame, text="Hi", text_color=f"{self.colors.errorColor}")
+      errorLabel.grid(row=2, column=0, sticky='nsew')
 
-      ###########################################Treeview#########################################################
-      tree_scroll = Scrollbar(dataFrame)
-      tree_scroll.pack(side=RIGHT, fill=Y)
+      battery_info = ctk.CTkLabel(mainFrame, text="", text_color="#353535")
+      battery_info.grid(row=3, column=0, sticky='nsew')
 
+      # Configure tab style
       style = ttk.Style()
-      style.theme_use("clam")  
-      style.configure("Treeview",
-         background=f"{self.colors.primaryC}",
-         foreground="#231942",
-         rowheight=30,
-         fieldbackground=f"{self.colors.primaryC}"
+      style.configure("TNotebook", tabposition='n')
+      style.configure("TNotebook.Tab", font=('Arial', 12))
+      style.configure('TNotebook', background=f'{self.colors.backgroundMainC}')
+      style.configure('TNotebook.Tab', padding=[5, 5])
+
+      # Change the active tab background color (selected tab)
+      style.map('TNotebook.Tab', 
+         background=[('selected', f'{self.colors.selectedTab[0]}')],  # Active tab background
+         foreground=[('selected', f'{self.colors.selectedTab[1]}')],  # Active tab text color
       )
 
-      my_tree = ttk.Treeview(dataFrame, yscrollcommand=tree_scroll.set)
-      my_tree.pack(ipadx=50, ipady=180, fill=BOTH, expand=True)
+      # Set the background for inactive tabs
+      style.configure('TNotebook.Tab', background=f'{self.colors.unselectedTab[0]}', foreground=f'{self.colors.unselectedTab[1]}')
 
-      tree_scroll.config(command=my_tree.yview)
+      #remove the focus around the box when clicked
+      style.layout('TNotebook.Tab', [
+            ('Notebook.tab', {
+                  'sticky': 'nswe', 
+                  'children': [
+                     ('Notebook.padding', {
+                        'side': 'top',
+                        'children': [
+                              ('Notebook.label', {'sticky': ''})
+                        ]
+                     })
+                  ]
+            })
+         ])
 
-      my_tree['columns'] = ("Day", "Year")
+      # Configure frame sizes (90% height)
+      mainFrame.grid_rowconfigure(1, weight=9)  # 90% for the notebook
+      mainFrame.grid_rowconfigure(2, weight=1)  # 10% below notebook for something else
 
-      my_tree.column("#0", width=0, stretch=NO)
-      my_tree.column("Day", anchor=CENTER, width=100)
-      my_tree.column("Year", anchor=CENTER, width=120)
-      
-      my_tree.heading("#0", text='', anchor=W)
-      my_tree.heading("Day", text="Day", anchor=CENTER)
-      my_tree.heading("Year", text="Year", anchor=CENTER)
+      # Make sure labels are centered and frames are responsive
+      frame1_today.grid_rowconfigure(0, weight=1)
+      frame1_today.grid_columnconfigure(0, weight=1)
+      frame2_monthly.grid_rowconfigure(0, weight=1)
+      frame2_monthly.grid_columnconfigure(0, weight=1)
+      frame3_yearly.grid_rowconfigure(0, weight=1)
+      frame3_yearly.grid_columnconfigure(0, weight=1)
 
-      ####################################################################################################
-      #menues frame
-      menuBar = Frame(mainFrame, border=1, height=100, bg=f"{self.colors.primaryC}")
-      menuBar.pack(fill=BOTH, expand=True)
+   def nav_frame(self):
+      global backward_button
 
-      ###BUTTONS###
-      searchB = Button(menuBar, text="Search", command=self.func.searchButton, bg=f'{self.colors.buttonColor}', fg="white", cursor="hand2")
-      searchB.pack(side="left", padx=5, pady=2)
+      navBar = ctk.CTkFrame(mainFrame, height=45, corner_radius=10, fg_color=f"{self.colors.framesC}", border_width=2, border_color='#88A3C7')
+      navBar.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)  # Expand along x-axis
+      mainFrame.grid_rowconfigure(0, weight=0)  # Keep navbar fixed at the top
+      mainFrame.grid_columnconfigure(0, weight=2)  # Ensure it expands horizontally
 
-      backB = Button(menuBar, text="Back", state="disabled", command=self.func.backButton, bg=f'{self.colors.disabledButton}', fg="white", cursor="hand2")
-      backB.configure(disabledforeground="white")
-      backB.pack(side="left", padx=5, pady=2)
+      #Create Search button on the top left
+      search_button = ctk.CTkButton(navBar, text="Search", width=80, height=30, 
+                                    command=sideFrame.animate, fg_color=f"{self.colors.buttonColorActive}", hover_color=f'{self.colors.hoverColor}', font=('Arial', 14), text_color=f'{self.colors.textC}')
+      search_button.grid(row=0, column=0, padx=10, pady=10)
 
-      homeB = Button(menuBar, text="Home", command=self.func.homeButton, bg=f'{self.colors.buttonColor}', fg="white", cursor="hand2")
-      homeB.pack(side="left", padx=5, pady=2)
+      #Create Forward and Backward buttons
+      backward_button = ctk.CTkButton(navBar, text="<-", width=30, 
+                                      height=30, state="disabled", command=self.func.backButton, cursor="hand2", fg_color=f"{self.colors.buttonColorDisabled}")
+      backward_button.grid(row=0, column=1, padx=5)
 
-      yearlyButton = Button(menuBar, text="Yearly data", command=lambda: self.stack.add(self.func.dataYearly), bg=f'{self.colors.buttonColorD}', fg="white", cursor="hand2")
-      monthlyButton = Button(menuBar, text="Monthly data", command=lambda: self.stack.add(self.func.dataMonthly), bg=f'{self.colors.buttonColorD}', fg="white", cursor="hand2")
-      
-      themeButton = Button(menuBar, text=f"Theme: {"light"}", bg=f'{self.colors.buttonColor}', fg='white', cursor="hand2", command=self.func.switchTheme)
-      themeButton.pack(side="right", padx=5, pady=2)
+      forward_button = ctk.CTkButton(navBar, text="->", width=30, height=30, 
+                                     cursor="hand2", state="disabled", command=None, fg_color=f"{self.colors.buttonColorDisabled}")
+      forward_button.grid(row=0, column=2, padx=5)
+   
+      # notebook expands with the window resize
+      navBar.grid_columnconfigure(3, weight=1)  
 
-      yearlyButton.pack(side="left", padx=5, pady=2)
-      monthlyButton.pack(side="left", padx=5, pady=2)
-      
-      ###BUTTONS###
-      graphFrame = Frame(mainFrame, relief='sunken', border=3, height=self.appHeight, bg=f"{self.colors.primaryC}", width=900)
-      graphFrame.pack(fill='both', expand=True)
+   def main(self):
+      global mainFrame, sideFrame
 
-      bottomInfoFrame = Frame(graphFrame, relief='groove', border=1, height=100, bg=f'{self.colors.primaryC}')
-      bottomInfoFrame.grid(row=2, column=0, sticky='nswe')
-      
-      errorLabel = Label(bottomInfoFrame, text=f'', fg='#e63946', bg=f'{self.colors.primaryC}')
-      errorLabel.pack(side="top", pady=10)
+      mainFrame = Frame(window, bg=f"{self.colors.backgroundMainC}")
+      mainFrame.pack(anchor=CENTER, fill=BOTH, expand=True)
 
-      battery_info = Label(bottomInfoFrame, text=f"", bg=f'{self.colors.primaryC}', fg='#023047', font=('Arial', 10))
-      battery_info.pack(side="bottom", pady=15)
+
+      sideFrame = SlidePanel(mainFrame, -0.3, 0, self.func.months, self.func)
+      sideFrame.layout()
+
+      self.nav_frame()
+      self.data_frame()
+
+      sideFrame.lift()
 
       my_tree.bind("<Double-1>", lambda e: self.func.helperFunc(searchMonth.get()))
-
-      # Configure grid rows and columns to expand
-      sideFrame.grid_rowconfigure(1, weight=1)  # Make the second row of sideFrame expand
-      sideFrame.grid_columnconfigure(0, weight=1)  # Make the first column of sideFrame expand
-      dataFrame.grid_rowconfigure(1, weight=1)  # Make dataFrame expand
-      
-      mainFrame.grid_rowconfigure(0, weight=1)  # Make mainFrame expand vertically
-      mainFrame.grid_columnconfigure(0, weight=1)  # Make mainFrame expand horizontally
-      graphFrame.grid_rowconfigure(0, weight=1)
-      graphFrame.grid_columnconfigure(0, weight=1)
-
-      graphFrame.pack_propagate(False)
-      bottomInfoFrame.pack_propagate(False)
-      searchFrame.grid_propagate(False)
-      dataFrame.grid_propagate(False)
-      graphFrame.grid_propagate(False)
-   
-      #Create graph when the app is started
       self.stack.add(self.func.getData, month, day, year)
+
 
 if __name__ == "__main__":
    AppUI()
