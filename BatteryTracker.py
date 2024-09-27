@@ -1,4 +1,3 @@
-from tkinter import *
 from tkinter import ttk
 import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -10,16 +9,16 @@ import sqlite3 as sql
 
 import datetime
 import threading
+import queue
 import gc
 
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 
-now = datetime.datetime.now()#current time/date
+now = datetime.datetime.now() #current time/date
 
-day = now.strftime("%a %d")
-month = now.strftime("%b")
-year = now.strftime("%Y")
-
+day_ = now.strftime("%a %d")
+month_ = now.strftime("%b")
+year_ = now.strftime("%Y")
 
 #NOTE: THE APP is in pre-built so the paths are written like this for now, later 
 #there will be another app for instalation and cofiguration
@@ -50,21 +49,21 @@ class colorPalette:
       self.errorColor = "#e56b6f"
       self.hoverColor = "#5B9CF0"
 
+#TODO: make one function for creating graph so there isn't any duplicate codes
 # AppFunctions with all methods for the app
-class AppFunctions: #TODO: make one function for creating graph so there isn't any duplicate codes
+class AppFunctions: 
    def __init__(self, navigationStack, colorPalette):
       self.stack = navigationStack
       self.colors = colorPalette
+
+      self.taskQueue = queue.Queue()
+
       self.currentMonth = ''
       self.currentYear = None
-
       self.months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
+   
    def backButton(self): #returns to the previus graph
       self.stack.pop_call(self)
-
-   def homeButton(self):
-      self.stack.add(self.getData, month, day, year)
    
    def avgBattLife(self, xPoints, yPoints) -> list:
       pairs = []
@@ -122,6 +121,23 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
 
       return hours, minutes
    
+   # this function is responsible for the threading
+   # processes the given functions in the Queue 
+   
+   def process_tasks(self):
+      from concurrent.futures import ThreadPoolExecutor
+
+      with ThreadPoolExecutor(max_workers=3) as executor:
+         print(f"Inside process thred: {threading.active_count()}")
+         while not self.taskQueue.empty():
+            task = self.taskQueue.get()  # Get a task from the queue
+            try:
+               executor.submit(task)  # Submit the task to a worker
+            except Exception as e:
+               errorLabel.configure(text=f"{e}")         
+            finally:
+               self.taskQueue.task_done()  # Mark the task as done
+   
    def getData(self, month, day, year):
       Ypoints = np.array([])
       Xpoints = np.array([])
@@ -134,34 +150,46 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
          try:
             with sql.connect(databasePath) as conn:
                cursor = conn.cursor()
-               data = cursor.execute(f"SELECT * FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
+               data = cursor.execute(f"SELECT batteryPerc, time FROM {month} WHERE day=? AND year=?", (day, year)).fetchall()
 
-            for i in range(len(data)-1):
+            for i in range(len(data)):
                x = data[i]
                Ypoints = np.append(Ypoints, [x[0]])
 
-               total_min = x[2]
+               total_min = x[1]
                hours, minutes = self.minutesToHours(total_min)
 
                Xpoints = np.append(Xpoints, [f'{hours:02d}:{minutes:02d}']) 
-               timeM = abs(data[i][2] - data[i+1][2])
-                              
-               if timeM == 15:
-                  yDataFAvg.append(x[0])
-                  xDataFAvg.append(total_min)
+               
+               if i < len(data) - 1: 
+                  timeM = abs(data[i][1] - data[i+1][1])
+                                 
+                  if timeM == 15:
+                     yDataFAvg.append(x[0])
+                     xDataFAvg.append(total_min)
 
-               model_data.append((x[2], x[0])) #data for the model
+               model_data.append((x[1], x[0])) #data for the model
 
-            model_data = np.array(model_data)
+            model_data = np.array(model_data)  
             
+            if self.currentMonth != month:
+               self.dataMonthly()
+               self.currentMonth = month
+            
+            if self.currentYear != year:
+               self.dataYearly()
+               self.currentYear = year
+
             self.createGraph(Xpoints, Ypoints, day) #calls the function to create the graph
 
             if now.strftime("%a %d") == day and len(Xpoints) >= 3: #It works only on the current day, when there are more than 3 xpoints
-               threading.Thread(target=self.linear_model, args=(model_data, Xpoints, Ypoints), daemon=True).start()#linear function thread so it doesn't slow down the main thread                 
+               self.taskQueue.put(lambda: self.linear_model(model_data, Xpoints, Ypoints))
 
+            threading.Thread(target=self.process_tasks, daemon=True).start()
+            
             batteryCharg = self.batteryCharged(Ypoints)#get battery charged count
             averBatt = self.avgBattLife(xDataFAvg, yDataFAvg)# get avg battery
-
+         
             #Labels for how many times batt was charged and average life of the battery
             battery_info.configure(text=f"AVG.battery: ≈{averBatt[0]}h:{averBatt[1]:.0f}m | charged: {batteryCharg} {"times" if batteryCharg > 1 else "time"}")            
             
@@ -252,7 +280,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
             ax.set_xticklabels(x_labels, rotation=10)
 
             ax.scatter([len(x) - 1], [predicted_battery], color='black', s=15, marker='o', linewidth=2, zorder=5)
-            ax.annotate(f'{predicted_battery}%', (len(x) - 1, predicted_battery), textcoords='offset points', xytext=(-15, -5), ha='center', fontsize=11, color='black')
+            ax.annotate(f'{predicted_battery}%', (len(x) - 1, predicted_battery), textcoords='offset points', xytext=(-15, -5), ha='center', fontsize=12, color='black')
 
             canvas.draw()
       
@@ -303,18 +331,18 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       for i in range(1, len(y)):
          if y[i] > y[i - 1]:
             ax.scatter([x[i]], [y[i]], color='black', s=30, marker='o', linewidth=2, zorder=5)
-            ax.annotate('Charged', (x[i], y[i]), textcoords='offset points', xytext=(-30, 0), ha='center', fontsize=11, color='black')
+            ax.annotate('Charged', (x[i], y[i]), textcoords='offset points', xytext=(-30, 0), ha='center', fontsize=12, color='black')
 
          if y[i] == minimum:
             ax.scatter([x[i]], [y[i]], color='black', s=30, marker='o', linewidth=2, zorder=5)
-            ax.annotate(f'Lowest {minimum:.0f}%', (x[i], y[i]), textcoords='offset points', xytext=(-40, 0), ha='center', fontsize=11, color='black')
+            ax.annotate(f'Lowest {minimum:.0f}%', (x[i], y[i]), textcoords='offset points', xytext=(-40, 0), ha='center', fontsize=12, color='black')
 
       ax.set_xticks(range(len(x)))
       ax.set_xticklabels(x, rotation=35)
 
-      ax.set_ylabel("Battery Percentage")
-      ax.set_xlabel("Time")
-      ax.set_title(f'Battery data for {day}')
+      ax.set_ylabel("Battery Percentage", fontsize=14)
+      ax.set_xlabel("Time", fontsize=14)
+      ax.set_title(f'Battery data for {day}', fontsize=14)
       
       # Manually specify the legend entries for red, orange, and green lines
       ax.plot([], [], color='red', linestyle='solid', label='Battery Used >= 6')
@@ -323,7 +351,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       ax.plot([], [], color='gray', linestyle='solid', label='Predicted battery perc.')
       
       ax.grid(axis='both', color='gray', linestyle='--', linewidth=0.3)
-      ax.legend(loc='upper right')  #Display the legend in the top-right corner
+      ax.legend(loc='upper right', fontsize=12)  #Display the legend in the top-right corner
 
       canvas = FigureCanvasTkAgg(f, frame1_today)
       canvas_widget = canvas.get_tk_widget()
@@ -333,7 +361,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       toolbar = NavigationToolbar2Tk(canvas, frame1_today, pack_toolbar=False)
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
-
+   
    def dataYearly(self):
       self.clearGraphs(True)
       battery_info.configure(text="")
@@ -347,7 +375,7 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       months = [] #storing only months that have data
 
       if not getYear:
-         getYear = year #if getYear is nullPtr then get the current year.
+         getYear = year_ #if getYear is nullPtr then get the current year.
 
       try:
          for month in self.months:
@@ -436,8 +464,8 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
       getYear = searchYear.get()
 
       if not getYear and not getMonth:
-         getYear = year #if getYear and getMonth are nullPtrs then get the current year and month.
-         getMonth = month
+         getYear = year_ #if getYear and getMonth are nullPtrs then get the current year and month.
+         getMonth = month_
 
       with sql.connect(databasePath) as conn:
          cursor = conn.cursor()
@@ -500,7 +528,6 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
             ax1.text(x_pos, y_pos, str(count), ha='center', va='bottom',
                color="black", weight="normal")
             
-
          ax2.set_ylabel("Average usage (minutes)")
          ax2.set_xlabel("Days")
          ax2.set_xticks(range(len(days)))
@@ -531,11 +558,12 @@ class AppFunctions: #TODO: make one function for creating graph so there isn't a
          errorLabel.configure(text=f'We don\'t have any data for that month or year yet, please try later. {e}')  
 
       plt.close(fig) #Close the figure to release resources
- 
+
 # Navigation class
-class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
+class NavigationStack(AppFunctions):
    def __init__(self):
       self.stack = []
+      self.stackForward = []
       self.colors = colorPalette()
       self.current = None
 
@@ -544,7 +572,7 @@ class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
       if (function, args, kwargs) not in self.stack:  # Checks if the function is not already inside the stack
          self.stack.append((function, args, kwargs))
 
-      if(len(self.stack) >= 2): # if the length of the stack is greater than 1 the button BACK is active
+      if(len(self.stack) >= 2): # if the length of the stack is greater or equal to 2 the button BACK is active
          backward_button.configure(state='active', fg_color=f"{self.colors.buttonColorActive}")
 
       result = function(*args, **kwargs)
@@ -554,14 +582,14 @@ class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
 
    #call the last called function and pop it from the stack
    def pop_call(self, instance):
-      if len(self.stack) <= 1: # if the stack doesn't have more than 1 item, then the BACK button should be disabled
+      if len(self.stack) <= 2: # if the stack doesn't have more or 2 items, then the BACK button should be disabled
          backward_button.configure(state='disabled', fg_color=f"{self.colors.buttonColorDisabled}")
 
-      if not self.is_empty():
-         if self.current == self.stack[-1] and len(self.stack) > 1: # It checks if they are equal if yes then it pops the last item
-            self.stack.pop()                                        # so the current graph doesn't show twice and it moves to the second last graph
+      if not self.is_empty() and len(self.stack) >= 2:
+         if self.current == self.stack[-1]: # It checks if they are equal if yes then it pops the last item
+            self.stackForward.append(self.stack.pop())             # so the current graph doesn't show twice and it moves to the second last graph
             
-            function, args, kwargs = self.stack.pop()
+            function, args, kwargs = self.stack[-1]
             self.current = (function, args, kwargs)
 
          else:
@@ -569,7 +597,7 @@ class NavigationStack(AppFunctions):#BUG: FIX THE STACK NAVIGATION``
             self.current = (function, args, kwargs) 
 
          return function(*args, **kwargs) # calls the function to create a graph
-   
+      
    # is_empty returns true if the length of the stack is 0, and false if not
    def is_empty(self) -> bool:
       return len(self.stack) == 0
@@ -639,13 +667,13 @@ class SlidePanel(ctk.CTkFrame):
 
 
       #Search Frame Components
-      searchMonth = ctk.CTkComboBox(searchFrame, font=('Arial', 12), justify=CENTER, values=self.months, corner_radius=10)
+      searchMonth = ctk.CTkComboBox(searchFrame, font=('Arial', 12), justify="center", values=self.months, corner_radius=10)
       searchMonth.grid(row=0, column=0, ipady=5, padx=5, pady=10, sticky='ew')
-      searchMonth.set(month)
+      searchMonth.set(month_)
 
-      searchYear = ctk.CTkComboBox(searchFrame, font=('Arial', 12), justify=CENTER, values=self.years, corner_radius=10)
+      searchYear = ctk.CTkComboBox(searchFrame, font=('Arial', 12), justify="center", values=self.years, corner_radius=10)
       searchYear.grid(row=0, column=1, ipady=5, padx=5, pady=10, sticky='ew')
-      searchYear.set(year)
+      searchYear.set(year_)
 
       button = ctk.CTkButton(searchFrame, text='Search', font=('Arial', 14), corner_radius=6, fg_color=f'{self.colors.buttonColorActive}',
                              text_color=f'{self.colors.textC}', hover_color=f'{self.colors.hoverColor}', command=lambda: self.func.searchQuery(searchMonth.get(), searchYear.get()))
@@ -676,13 +704,13 @@ class SlidePanel(ctk.CTkFrame):
 
       # Define columns for the Treeview
       my_tree['columns'] = ("Day", "Year")
-      my_tree.column("#0", width=0, stretch=NO)
-      my_tree.column("Day", anchor=CENTER, width=100)
-      my_tree.column("Year", anchor=CENTER, width=120)
+      my_tree.column("#0", width=0, stretch=False)
+      my_tree.column("Day", anchor="center", width=100)
+      my_tree.column("Year", anchor="center", width=120)
 
-      my_tree.heading("#0", text='', anchor=W)
-      my_tree.heading("Day", text="Day", anchor=CENTER)
-      my_tree.heading("Year", text="Year", anchor=CENTER)
+      my_tree.heading("#0", text='', anchor="w")
+      my_tree.heading("Day", text="Day", anchor="center")
+      my_tree.heading("Year", text="Year", anchor="center")
       style.configure("Treeview.Heading", font=('Arial', 13))
 
 # UI class
@@ -702,7 +730,7 @@ class AppUI:
       self.func = AppFunctions(self.stack, self.colors)
 
       self.main()
-
+   
    def data_frame(self):
       global errorLabel, frame1_today, frame2_monthly, frame3_yearly, battery_info
 
@@ -725,11 +753,17 @@ class AppUI:
       notebook.select(frame1_today)
 
       #Error label will display the bugs/exceptions
-      errorLabel = ctk.CTkLabel(mainFrame, text="Hi", text_color=f"{self.colors.errorColor}")
+      errorLabel = ctk.CTkLabel(mainFrame, text="", text_color=f"{self.colors.errorColor}")
       errorLabel.grid(row=2, column=0, sticky='nsew')
 
+      #Battery info with the average battery life and charged count will be displayed here
       battery_info = ctk.CTkLabel(mainFrame, text="", text_color="#353535")
       battery_info.grid(row=3, column=0, sticky='nsew')
+
+      #preLoad labels for the tabs:
+      preLoad = ctk.CTkLabel(frame1_today, text='Here the graph will be loaded!.', font=('Arial', 13), text_color="gray").grid(row=0, column=0, sticky="nsew")
+      preLoad = ctk.CTkLabel(frame2_monthly, text='Here the graph will be loaded!.', font=('Arial', 13), text_color="gray").grid(row=0, column=0, sticky="nsew")
+      preLoad = ctk.CTkLabel(frame3_yearly, text='Here the graph will be loaded!.', font=('Arial', 13), text_color="gray").grid(row=0, column=0, sticky="nsew")
 
       # Configure tab style
       style = ttk.Style()
@@ -773,7 +807,7 @@ class AppUI:
       frame2_monthly.grid_columnconfigure(0, weight=1)
       frame3_yearly.grid_rowconfigure(0, weight=1)
       frame3_yearly.grid_columnconfigure(0, weight=1)
-
+   
    def nav_frame(self):
       global backward_button
 
@@ -789,22 +823,21 @@ class AppUI:
 
       #Create Forward and Backward buttons
       backward_button = ctk.CTkButton(navBar, text="<-", width=30, 
-                                      height=30, state="disabled", command=self.func.backButton, cursor="hand2", fg_color=f"{self.colors.buttonColorDisabled}")
+                                      height=30, cursor="hand2", state="disabled", command=self.func.backButton, fg_color=f"{self.colors.buttonColorDisabled}")
       backward_button.grid(row=0, column=1, padx=5)
 
       forward_button = ctk.CTkButton(navBar, text="->", width=30, height=30, 
-                                     cursor="hand2", state="disabled", command=None, fg_color=f"{self.colors.buttonColorDisabled}")
+                                     cursor="hand2", state="disabled", command=self.func, fg_color=f"{self.colors.buttonColorDisabled}")
       forward_button.grid(row=0, column=2, padx=5)
    
       # notebook expands with the window resize
       navBar.grid_columnconfigure(3, weight=1)  
-
+   
    def main(self):
       global mainFrame, sideFrame
 
-      mainFrame = Frame(window, bg=f"{self.colors.backgroundMainC}")
-      mainFrame.pack(anchor=CENTER, fill=BOTH, expand=True)
-
+      mainFrame = ctk.CTkFrame(window, fg_color=f"{self.colors.backgroundMainC}")
+      mainFrame.pack(anchor="center", fill="both", expand=True)
 
       sideFrame = SlidePanel(mainFrame, -0.3, 0, self.func.months, self.func)
       sideFrame.layout()
@@ -815,11 +848,10 @@ class AppUI:
       sideFrame.lift()
 
       my_tree.bind("<Double-1>", lambda e: self.func.helperFunc(searchMonth.get()))
-      self.stack.add(self.func.getData, month, day, year)
-
+      self.func.taskQueue.put(lambda: self.stack.add(self.func.getData, month_, day_, year_))
+      threading.Thread(target=self.func.process_tasks, daemon=True).start()
 
 if __name__ == "__main__":
    AppUI()
    window.bind('<Button>', lambda event: event.widget.focus_set())
-   print(threading.active_count())
    window.mainloop()

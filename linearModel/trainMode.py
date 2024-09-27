@@ -15,7 +15,7 @@ Y = []  # Target (battery percentage change for future time interval)
 # Define the time intervals for prediction (e.g., 30 minutes)
 prediction_interval = 2
 months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-years = [2023, 2024]
+years = [2024]
 
 now = datetime.datetime.now()
 
@@ -58,5 +58,5 @@ model.fit(X, Y)
 joblib.dump(model, 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model2024.pkl')
 
 # Load the saved model
-loaded_model = joblib.load('C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model2024.pkl')
+#loaded_model = joblib.load('C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model2024.pkl')
 print("Model trained.")
