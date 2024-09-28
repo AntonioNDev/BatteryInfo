@@ -20,15 +20,12 @@ day_ = now.strftime("%a %d")
 month_ = now.strftime("%b")
 year_ = now.strftime("%Y")
 
-#NOTE: THE APP is in pre-built so the paths are written like this for now, later 
-#there will be another app for instalation and cofiguration
-
 window = ctk.CTk()
 window.title("Battery Tracker")
 window.iconbitmap("logo/logoNBW.ico")
 databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
 
-# colorPallete is for the colors of the app
+# colorPallete for the UI
 class colorPalette:
    def __init__(self) -> None:
       #default colors
@@ -49,8 +46,9 @@ class colorPalette:
       self.errorColor = "#e56b6f"
       self.hoverColor = "#5B9CF0"
 
-#TODO: make one function for creating graph so there isn't any duplicate codes
-# AppFunctions with all methods for the app
+      self.borderColor = "#90e0ef"
+
+# All the functions the app needs to operate are in the AppFunctions
 class AppFunctions: 
    def __init__(self, navigationStack, colorPalette):
       self.stack = navigationStack
@@ -123,7 +121,6 @@ class AppFunctions:
    
    # this function is responsible for the threading
    # processes the given functions in the Queue 
-   
    def process_tasks(self):
       from concurrent.futures import ThreadPoolExecutor
 
@@ -665,7 +662,6 @@ class SlidePanel(ctk.CTkFrame):
       dataFrame.grid_rowconfigure(0, weight=1)  # Make the Treeview inside dataFrame expand
       dataFrame.grid_columnconfigure(0, weight=1)  # Expand Treeview horizontally in dataFrame
 
-
       #Search Frame Components
       searchMonth = ctk.CTkComboBox(searchFrame, font=('Arial', 12), justify="center", values=self.months, corner_radius=10)
       searchMonth.grid(row=0, column=0, ipady=5, padx=5, pady=10, sticky='ew')
@@ -675,8 +671,12 @@ class SlidePanel(ctk.CTkFrame):
       searchYear.grid(row=0, column=1, ipady=5, padx=5, pady=10, sticky='ew')
       searchYear.set(year_)
 
-      button = ctk.CTkButton(searchFrame, text='Search', font=('Arial', 14), corner_radius=6, fg_color=f'{self.colors.buttonColorActive}',
-                             text_color=f'{self.colors.textC}', hover_color=f'{self.colors.hoverColor}', command=lambda: self.func.searchQuery(searchMonth.get(), searchYear.get()))
+      button = ctk.CTkButton(searchFrame, text='Search', font=('Arial', 14), corner_radius=7, fg_color=f'{self.colors.buttonColorActive}',
+                             text_color=f'{self.colors.textC}', hover_color=f'{self.colors.hoverColor}', 
+                             command=lambda: self.func.searchQuery(searchMonth.get(), searchYear.get()), 
+                             border_width=2, border_color=f'{self.colors.borderColor}', 
+                             width=110)
+      
       button.grid(row=1, column=0, columnspan=2, pady=2, padx=10, sticky='ns') 
 
       # Make the columns in searchFrame responsive
@@ -754,11 +754,11 @@ class AppUI:
 
       #Error label will display the bugs/exceptions
       errorLabel = ctk.CTkLabel(mainFrame, text="", text_color=f"{self.colors.errorColor}")
-      errorLabel.grid(row=2, column=0, sticky='nsew')
+      errorLabel.grid(row=2, column=0, sticky='ns')
 
       #Battery info with the average battery life and charged count will be displayed here
       battery_info = ctk.CTkLabel(mainFrame, text="", text_color="#353535")
-      battery_info.grid(row=3, column=0, sticky='nsew')
+      battery_info.grid(row=3, column=0, sticky='ns')
 
       #preLoad labels for the tabs:
       preLoad = ctk.CTkLabel(frame1_today, text='Here the graph will be loaded!.', font=('Arial', 13), text_color="gray").grid(row=0, column=0, sticky="nsew")
@@ -809,7 +809,7 @@ class AppUI:
       frame3_yearly.grid_columnconfigure(0, weight=1)
    
    def nav_frame(self):
-      global backward_button
+      global backward_button, navBar, forward_button
 
       navBar = ctk.CTkFrame(mainFrame, height=45, corner_radius=10, fg_color=f"{self.colors.framesC}", border_width=2, border_color='#88A3C7')
       navBar.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)  # Expand along x-axis
@@ -818,16 +818,17 @@ class AppUI:
 
       #Create Search button on the top left
       search_button = ctk.CTkButton(navBar, text="Search", width=80, height=30, 
-                                    command=sideFrame.animate, fg_color=f"{self.colors.buttonColorActive}", hover_color=f'{self.colors.hoverColor}', font=('Arial', 14), text_color=f'{self.colors.textC}')
+                                    command=sideFrame.animate, fg_color=f"{self.colors.buttonColorActive}", hover_color=f'{self.colors.hoverColor}', 
+                                    font=('Arial', 14), text_color=f'{self.colors.textC}', border_width=2, border_color=f'{self.colors.borderColor}')
       search_button.grid(row=0, column=0, padx=10, pady=10)
 
       #Create Forward and Backward buttons
       backward_button = ctk.CTkButton(navBar, text="<-", width=30, 
-                                      height=30, cursor="hand2", state="disabled", command=self.func.backButton, fg_color=f"{self.colors.buttonColorDisabled}")
+                                      height=30, cursor="hand2", state="disabled", command=self.func.backButton, fg_color=f"{self.colors.buttonColorDisabled}", border_width=2, border_color=f'{self.colors.borderColor}')
       backward_button.grid(row=0, column=1, padx=5)
 
       forward_button = ctk.CTkButton(navBar, text="->", width=30, height=30, 
-                                     cursor="hand2", state="disabled", command=self.func, fg_color=f"{self.colors.buttonColorDisabled}")
+                                     cursor="hand2", state="disabled", command=self.func, fg_color=f"{self.colors.buttonColorDisabled}", border_width=2, border_color=f'{self.colors.borderColor}')
       forward_button.grid(row=0, column=2, padx=5)
    
       # notebook expands with the window resize
