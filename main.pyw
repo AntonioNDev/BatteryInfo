@@ -5,11 +5,20 @@ import time
 import psutil
 import logging
 
-path = "C:/Users/Antonio/Documents/MyProjects/BatteryInfo/logs"
-databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
+
+def configure_settings():
+   import os
+
+   global databasePath, logsPath
+
+   appdata_path = os.getenv('APPDATA')
+   app_folder = os.path.join(appdata_path, 'BatteryInfo')
+
+   databasePath = os.path.join(app_folder, 'database.db')
+   logsPath = os.path.join(app_folder, 'logs')
 
 
-logging.basicConfig(filename=f'{path}/errorLogs.log', level=logging.ERROR, format='%(levelname)s-%(message)s')
+   logging.basicConfig(filename=f'{logsPath}/errorLogs.log', level=logging.ERROR, format='%(levelname)s-%(message)s')
 
 class App:
    def __init__(self):
@@ -56,6 +65,6 @@ class App:
          #get battery percentage every 15 minutes
          time.sleep(900)
          
-
 if __name__ == '__main__':
+   configure_settings()
    App().main()
