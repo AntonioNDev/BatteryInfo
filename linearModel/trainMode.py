@@ -2,11 +2,14 @@ import sqlite3
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import joblib
-import matplotlib.pyplot as plt
 import datetime
-
+import os
 # Connect to the database
-conn = sqlite3.connect('C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db')
+appdata_path = os.getenv('APPDATA')
+app_folder = os.path.join(appdata_path, 'BatteryInfo')
+db_path = os.path.join(app_folder, 'database.db')
+
+conn = sqlite3.connect(db_path)
 cur = conn.cursor()
 
 X = []  # Features (battery percentage differences)
