@@ -1,0 +1,6 @@
+matplotlib>=3.8
+numpy>=1.26
+customtkinter>=5.1
+psutil>=5.9
+joblib>=1.4
+scikit-learn>=1.3
