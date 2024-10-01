@@ -12,6 +12,8 @@ import threading
 import queue
 import gc
 
+from timsi import timing
+
 matplotlib.use('Agg')
 
 now = datetime.datetime.now() #current time/date
@@ -22,8 +24,21 @@ year_ = now.strftime("%Y")
 
 window = ctk.CTk()
 window.title("Battery Tracker")
-window.iconbitmap("logo/logoNBW.ico")
-databasePath = 'C:/Users/Antonio/Documents/MyProjects/BatteryInfo/database.db'
+
+@timing
+def configure_paths():
+   import os
+
+   global databasePath, modelPath
+
+   appdata_path = os.getenv('APPDATA')
+   app_folder = os.path.join(appdata_path, 'BatteryInfo')
+
+   databasePath = os.path.join(app_folder, 'database.db')
+   logoPath = os.path.join(app_folder, 'logo/logoNBW.ico')
+   modelPath = os.path.join(app_folder, 'linearModel/linear_regression_model2024.pkl')
+
+   window.iconbitmap(logoPath)
 
 # colorPallete for the UI
 class colorPalette:
@@ -47,6 +62,7 @@ class colorPalette:
       self.hoverColor = "#5B9CF0"
 
       self.borderColor = "#90e0ef"
+      self.borderColorDisabled = "#1d3557"
 
 # All the functions the app needs to operate are in the AppFunctions
 class AppFunctions: 
@@ -125,7 +141,6 @@ class AppFunctions:
       from concurrent.futures import ThreadPoolExecutor
 
       with ThreadPoolExecutor(max_workers=3) as executor:
-         print(f"Inside process thred: {threading.active_count()}")
          while not self.taskQueue.empty():
             task = self.taskQueue.get()  # Get a task from the queue
             try:
@@ -134,7 +149,7 @@ class AppFunctions:
                errorLabel.configure(text=f"{e}")         
             finally:
                self.taskQueue.task_done()  # Mark the task as done
-   
+   @timing
    def getData(self, month, day, year):
       Ypoints = np.array([])
       Xpoints = np.array([])
@@ -248,11 +263,11 @@ class AppFunctions:
       sample_input = X[-2:]
 
       return sample_input
-   
+   @timing
    def linear_model(self, data, x, y):
       try: 
-         import joblib
-         self.model = joblib.load("C:/Users/Antonio/Documents/MyProjects/BatteryInfo/linearModel/linear_regression_model2024.pkl")
+         from joblib import load
+         self.model = load(modelPath)
          
          predicted_change = self.model.predict([self.prepare_data(data)])
          last_actual_data = data[-1, 1]
@@ -296,7 +311,7 @@ class AppFunctions:
 
       if gcC:
          gc.collect()
-   
+   @timing
    def createGraph(self, x, y, day): 
       self.clearGraphs(True)
       global f, ax, canvas, toolbar
@@ -358,7 +373,7 @@ class AppFunctions:
       toolbar = NavigationToolbar2Tk(canvas, frame1_today, pack_toolbar=False)
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
-   
+   @timing
    def dataYearly(self):
       self.clearGraphs(True)
       battery_info.configure(text="")
@@ -443,7 +458,7 @@ class AppFunctions:
             max_level = level
 
       return total_usage
-   
+   @timing
    def dataMonthly(self):
       self.clearGraphs(True)
       errorLabel.configure(text="")
@@ -570,7 +585,7 @@ class NavigationStack(AppFunctions):
          self.stack.append((function, args, kwargs))
 
       if(len(self.stack) >= 2): # if the length of the stack is greater or equal to 2 the button BACK is active
-         backward_button.configure(state='active', fg_color=f"{self.colors.buttonColorActive}")
+         backward_button.configure(state='active', fg_color=f"{self.colors.buttonColorActive}", border_color=f'{self.colors.borderColor}')
 
       result = function(*args, **kwargs)
       self.current = (function, args, kwargs)
@@ -580,7 +595,7 @@ class NavigationStack(AppFunctions):
    #call the last called function and pop it from the stack
    def pop_call(self, instance):
       if len(self.stack) <= 2: # if the stack doesn't have more or 2 items, then the BACK button should be disabled
-         backward_button.configure(state='disabled', fg_color=f"{self.colors.buttonColorDisabled}")
+         backward_button.configure(state='disabled', fg_color=f"{self.colors.buttonColorDisabled}", border_color=f'{self.colors.borderColorDisabled}')
 
       if not self.is_empty() and len(self.stack) >= 2:
          if self.current == self.stack[-1]: # It checks if they are equal if yes then it pops the last item
@@ -714,6 +729,7 @@ class SlidePanel(ctk.CTkFrame):
       style.configure("Treeview.Heading", font=('Arial', 13))
 
 # UI class
+@timing
 class AppUI: 
    def __init__(self):
       self.appWidth = 1250
@@ -824,11 +840,11 @@ class AppUI:
 
       #Create Forward and Backward buttons
       backward_button = ctk.CTkButton(navBar, text="<-", width=30, 
-                                      height=30, cursor="hand2", state="disabled", command=self.func.backButton, fg_color=f"{self.colors.buttonColorDisabled}", border_width=2, border_color=f'{self.colors.borderColor}')
+                                      height=30, cursor="hand2", state="disabled", command=self.func.backButton, fg_color=f"{self.colors.buttonColorDisabled}", border_width=2, border_color=f'{self.colors.borderColorDisabled}')
       backward_button.grid(row=0, column=1, padx=5)
 
       forward_button = ctk.CTkButton(navBar, text="->", width=30, height=30, 
-                                     cursor="hand2", state="disabled", command=self.func, fg_color=f"{self.colors.buttonColorDisabled}", border_width=2, border_color=f'{self.colors.borderColor}')
+                                     cursor="hand2", state="disabled", command=self.func, fg_color=f"{self.colors.buttonColorDisabled}", border_width=2, border_color=f'{self.colors.borderColorDisabled}')
       forward_button.grid(row=0, column=2, padx=5)
    
       # notebook expands with the window resize
@@ -853,6 +869,7 @@ class AppUI:
       threading.Thread(target=self.func.process_tasks, daemon=True).start()
 
 if __name__ == "__main__":
+   configure_paths()
    AppUI()
    window.bind('<Button>', lambda event: event.widget.focus_set())
    window.mainloop()
