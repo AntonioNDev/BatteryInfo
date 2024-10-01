@@ -12,8 +12,6 @@ import threading
 import queue
 import gc
 
-from timsi import timing
-
 matplotlib.use('Agg')
 
 now = datetime.datetime.now() #current time/date
@@ -25,7 +23,7 @@ year_ = now.strftime("%Y")
 window = ctk.CTk()
 window.title("Battery Tracker")
 
-@timing
+
 def configure_paths():
    import os
 
@@ -149,7 +147,7 @@ class AppFunctions:
                errorLabel.configure(text=f"{e}")         
             finally:
                self.taskQueue.task_done()  # Mark the task as done
-   @timing
+  
    def getData(self, month, day, year):
       Ypoints = np.array([])
       Xpoints = np.array([])
@@ -263,7 +261,7 @@ class AppFunctions:
       sample_input = X[-2:]
 
       return sample_input
-   @timing
+   
    def linear_model(self, data, x, y):
       try: 
          from joblib import load
@@ -311,7 +309,7 @@ class AppFunctions:
 
       if gcC:
          gc.collect()
-   @timing
+   
    def createGraph(self, x, y, day): 
       self.clearGraphs(True)
       global f, ax, canvas, toolbar
@@ -373,7 +371,7 @@ class AppFunctions:
       toolbar = NavigationToolbar2Tk(canvas, frame1_today, pack_toolbar=False)
       toolbar.update()
       toolbar.grid(row=1, column=0, sticky="ew")
-   @timing
+   
    def dataYearly(self):
       self.clearGraphs(True)
       battery_info.configure(text="")
@@ -458,7 +456,7 @@ class AppFunctions:
             max_level = level
 
       return total_usage
-   @timing
+   
    def dataMonthly(self):
       self.clearGraphs(True)
       errorLabel.configure(text="")
@@ -729,7 +727,6 @@ class SlidePanel(ctk.CTkFrame):
       style.configure("Treeview.Heading", font=('Arial', 13))
 
 # UI class
-@timing
 class AppUI: 
    def __init__(self):
       self.appWidth = 1250
