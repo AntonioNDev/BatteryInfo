@@ -51,7 +51,7 @@ class Settings:
 
       destination_folder = os.path.join(appdata_path, 'BatteryInfo')
 
-      folders_to_move = ['logo', 'logs', 'main.pyw', 'linearModel']
+      folders_to_move = ['logo', 'logs', 'main.pyw', 'linearModel', 'testDatabase']
 
       for folder in folders_to_move:
          # Check if the folder exists in the current directory
