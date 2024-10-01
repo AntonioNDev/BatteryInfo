@@ -7,7 +7,7 @@ import os
 import datetime
 from sklearn.metrics import mean_absolute_error
 
-log_folder = "C:/Users/Antonio/Documents/MyProjects/BatteryInfo/logs"
+log_folder = ""
 if not os.path.exists(log_folder):
     os.makedirs(log_folder)
 
@@ -95,4 +95,3 @@ class ModelStats:
                pass 
 
 
-ModelStats()
