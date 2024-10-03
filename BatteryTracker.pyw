@@ -34,7 +34,7 @@ def configure_paths():
 
    databasePath = os.path.join(app_folder, 'database.db')
    logoPath = os.path.join(app_folder, 'logo/logoNBW.ico')
-   modelPath = os.path.join(app_folder, 'linearModel/linear_regression_model2024.pkl')
+   modelPath = os.path.join(app_folder, f'linearModel/linear_regression_model{year_}.pkl')
 
    window.iconbitmap(logoPath)
 
