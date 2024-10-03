@@ -750,8 +750,6 @@ class AppUI:
       # Create ttk.Notebook with 2 frames inside
       notebook = ttk.Notebook(mainFrame)
       notebook.grid(row=1, column=0, padx=10, pady=5, sticky='nsew', ipadx=5, ipady=5)  # Expand to fill x and y axis
-      mainFrame.grid_rowconfigure(1, weight=5)  # 80% of space for the notebook
-      mainFrame.grid_columnconfigure(0, weight=1)  # Make notebook fill width
 
       # Create the frames to add to the notebook
       frame1_today = ttk.Frame(notebook)
